@@ -1,5 +1,5 @@
 //import liraries
-import React, { Component } from 'react';
+import React, { Component, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,9 +14,34 @@ import { fontFamily } from '../assets/fontFamily';
 import { images } from '../assets/images';
 import { useNavigation } from '@react-navigation/native';
 import { lightTheme, darkTheme } from '../helper/colors';
+import { getAuth } from '@react-native-firebase/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // create a component
 const WelcomeScreen = () => {
+  const navigation = useNavigation();
+
+  useEffect(() => {
+    const checkUser = async () => {
+      const auth = getAuth();
+      const user = auth.currentUser;
+
+      if (user) {
+        try {
+          await AsyncStorage.setItem('currentUser', JSON.stringify(user));
+          console.log('User stored in AsyncStorage');
+          navigation.navigate('InitialchatScreen');
+        } catch (error) {
+          console.error('Error saving user to AsyncStorage:', error);
+        }
+      } else {
+        console.log('User is not logged in.');
+      }
+    };
+
+    checkUser();
+  }, []);
+
   const colorScheme = useColorScheme();
   const themeStyles = colorScheme === 'light' ? lightTheme : darkTheme;
   const fullText = texts.termspolicy;
@@ -30,7 +55,7 @@ const WelcomeScreen = () => {
 
   // Split the string based on the text you want to color
   const parts1 = full_Text.split(blue_Text);
-  const navigation = useNavigation();
+
   return (
     <View
       style={[styles.container, { backgroundColor: themeStyles.background }]}

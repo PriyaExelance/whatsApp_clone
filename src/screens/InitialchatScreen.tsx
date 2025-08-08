@@ -22,7 +22,8 @@ import Modal from 'react-native-modal';
 import { useEffect, useState } from 'react';
 
 import firestore from '@react-native-firebase/firestore';
-import auth from '@react-native-firebase/auth';
+import auth, { getAuth, signOut } from '@react-native-firebase/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const InitialchatScreen = () => {
   const navigation = useNavigation();
@@ -37,6 +38,7 @@ const InitialchatScreen = () => {
   const [selectedItem, setSelectedItem] = useState(1);
   const [showSearchinput, setSearchinput] = useState(false);
   const [search, setSearch] = useState('');
+  const [filteredData, setFilteredData] = useState(users);
 
   const toggleSearch = () => {
     setSearchinput(!showSearchinput);
@@ -44,9 +46,31 @@ const InitialchatScreen = () => {
       setSearch('');
     }
   };
+  const handleSearch = text => {
+    setSearch(text);
+
+    const filtered = users.filter(item =>
+      item.firstname.toLowerCase().includes(text.toLowerCase()),
+    );
+
+    setFilteredData(filtered);
+  };
   useEffect(() => {
     fetchUsers();
   }, []);
+  const user = auth().currentUser?.uid;
+  const handleLogout = async () => {
+    const auth = getAuth();
+    const user = auth.currentUser;
+    try {
+      await signOut(auth);
+      await AsyncStorage.removeItem('user');
+      console.log('User token removed successfully!');
+      navigation.navigate('WelcomeScreen');
+    } catch (error) {
+      console.error('Error removing user token:', error);
+    }
+  };
 
   const wp_categories = [
     { id: 1, name: 'Chats' },
@@ -133,7 +157,7 @@ const InitialchatScreen = () => {
       </TouchableOpacity>
     </View>
   );
-  const user = auth().currentUser?.uid;
+
   const find_user = users.filter(item => user !== item.id);
   const renderItem1 = ({ item }) => {
     return (
@@ -247,7 +271,7 @@ const InitialchatScreen = () => {
           >
             <TextInput
               value={search}
-              onChangeText={text => setSearch(text)}
+              onChangeText={handleSearch}
               placeholder=" Ask Meta AI or Search..."
               placeholderTextColor="white"
               style={{ color: 'white' }}
@@ -269,7 +293,9 @@ const InitialchatScreen = () => {
               <TouchableOpacity onPress={() => toggleSearch()}>
                 <Image source={images.search} style={styles.img_size} />
               </TouchableOpacity>
-              <Image source={images.settings} style={styles.settings} />
+              <TouchableOpacity onPress={() => handleLogout()}>
+                <Image source={images.settings} style={styles.settings} />
+              </TouchableOpacity>
             </View>
           </View>
         )}
@@ -341,7 +367,10 @@ const InitialchatScreen = () => {
           </TouchableOpacity>
         </View>
       )}
-      <Modal isVisible={isModalVisible}>
+      <Modal
+        isVisible={isModalVisible}
+        onBackdropPress={() => setModalVisible(!isModalVisible)}
+      >
         <View
           style={{
             backgroundColor: 'white',
@@ -423,7 +452,10 @@ const InitialchatScreen = () => {
           </TouchableOpacity>
         </View>
       </Modal>
-      <Modal isVisible={isVisible}>
+      <Modal
+        isVisible={isVisible}
+        onBackdropPress={() => setVisible(!isVisible)}
+      >
         <FlatList
           data={imgs}
           renderItem={renderItem}

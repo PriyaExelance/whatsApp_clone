@@ -28,7 +28,6 @@ const ChatScreen = ({ route }) => {
   const [messages, setMessages] = useState([]);
   const reversedMessages = [...messages].reverse();
   const navigation = useNavigation();
-
   const themeStyles = colorScheme === 'light' ? lightTheme : darkTheme;
   const currentUserId = auth().currentUser?.uid || '';
 
