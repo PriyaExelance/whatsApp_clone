@@ -20,17 +20,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // create a component
 const WelcomeScreen = () => {
   const navigation = useNavigation();
-
   useEffect(() => {
     const checkUser = async () => {
       const auth = getAuth();
       const user = auth.currentUser;
-
       if (user) {
         try {
           await AsyncStorage.setItem('currentUser', JSON.stringify(user));
           console.log('User stored in AsyncStorage');
-          navigation.navigate('InitialchatScreen');
+          navigation.replace('InitialchatScreen');
         } catch (error) {
           console.error('Error saving user to AsyncStorage:', error);
         }

@@ -42,18 +42,26 @@ const InitialchatScreen = () => {
 
   const toggleSearch = () => {
     setSearchinput(!showSearchinput);
+
     if (showSearchinput) {
       setSearch('');
+      fetchUsers();
     }
   };
+
   const handleSearch = text => {
     setSearch(text);
-
-    const filtered = users.filter(item =>
-      item.firstname.toLowerCase().includes(text.toLowerCase()),
+    const filtered = users.filter(
+      item =>
+        item.firstname.toLowerCase().includes(text.toLowerCase()) ||
+        item.lastname.toLowerCase().includes(text.toLowerCase()),
     );
-
-    setFilteredData(filtered);
+    console.log(filtered);
+    if (filtered.length > 0) {
+      setFilteredData(filtered);
+    } else {
+      setFilteredData([]);
+    }
   };
   useEffect(() => {
     fetchUsers();
@@ -128,6 +136,7 @@ const InitialchatScreen = () => {
     try {
       const userList = await getUsers();
       setUsers(userList);
+      setFilteredData(userList);
     } catch (error) {
       Alert.alert('Error in fetching users', error.message);
     }
@@ -158,54 +167,55 @@ const InitialchatScreen = () => {
     </View>
   );
 
-  const find_user = users.filter(item => user !== item.id);
   const renderItem1 = ({ item }) => {
-    return (
-      <TouchableOpacity
-        style={{
-          paddingVertical: hp(15),
-          paddingHorizontal: wp(16),
-          flexDirection: 'row',
-        }}
-        onPress={() =>
-          navigation.navigate('ChatScreen', {
-            id: item.id,
-            img: item.img,
-            firstname: item.firstname,
-            lastname: item.lastname,
-          })
-        }
-      >
-        <View
+    {
+      return (
+        <TouchableOpacity
           style={{
-            width: wp(50),
-            height: wp(50),
-            borderRadius: wp(25),
+            paddingVertical: hp(15),
+            paddingHorizontal: wp(16),
+            flexDirection: 'row',
           }}
+          onPress={() =>
+            navigation.navigate('ChatScreen', {
+              id: item.id,
+              img: item.img,
+              firstname: item.firstname,
+              lastname: item.lastname,
+            })
+          }
         >
-          <Image
-            source={{ uri: item.img }}
+          <View
             style={{
               width: wp(50),
               height: wp(50),
               borderRadius: wp(25),
             }}
-          />
-        </View>
-        <View style={{ marginLeft: wp(20) }}>
-          <Text
-            style={{
-              fontSize: fontSize(14),
-              fontWeight: 'bold',
-              color: themeStyles.texts,
-            }}
           >
-            {item.firstname} {item.lastname}
-          </Text>
-          <Text style={{ color: '#889095' }}>{item.phone}</Text>
-        </View>
-      </TouchableOpacity>
-    );
+            <Image
+              source={{ uri: item.img }}
+              style={{
+                width: wp(50),
+                height: wp(50),
+                borderRadius: wp(25),
+              }}
+            />
+          </View>
+          <View style={{ marginLeft: wp(20) }}>
+            <Text
+              style={{
+                fontSize: fontSize(14),
+                fontWeight: 'bold',
+                color: themeStyles.texts,
+              }}
+            >
+              {item.firstname} {item.lastname}
+            </Text>
+            <Text style={{ color: '#889095' }}>{item.phone}</Text>
+          </View>
+        </TouchableOpacity>
+      );
+    }
   };
   const themeStyles = colorScheme === 'light' ? lightTheme : darkTheme;
 
@@ -233,6 +243,7 @@ const InitialchatScreen = () => {
   const handleSubmit = async () => {
     if (!img || !firstname || !lastname || !phone) {
       Alert.alert('Error', 'Please field all the fields');
+      setModalVisible(!isModalVisible);
       return;
     }
     const userData = { img, firstname, lastname, phone };
@@ -274,10 +285,14 @@ const InitialchatScreen = () => {
               onChangeText={handleSearch}
               placeholder=" Ask Meta AI or Search..."
               placeholderTextColor="white"
-              style={{ color: 'white' }}
+              style={{ color: 'white', flex: 1 }}
               cursorColor="white"
             />
-            <TouchableOpacity onPress={() => toggleSearch()}>
+            <TouchableOpacity
+              onPress={() => {
+                toggleSearch();
+              }}
+            >
               <Image
                 source={images.cross}
                 style={{ width: wp(20), height: hp(20), tintColor: 'white' }}
@@ -323,18 +338,34 @@ const InitialchatScreen = () => {
       <TouchableOpacity style={styles.floating_btn}>
         <Image source={images.add_chats} />
       </TouchableOpacity>
-      {find_user.length > 0 ? (
+      {users.length > 0 ? (
         <FlatList
-          data={find_user}
+          contentContainerStyle={{ flex: 1 }}
+          data={filteredData}
           renderItem={renderItem1}
           keyExtractor={item => item.id.toString()}
           ItemSeparatorComponent={
             <View
               style={{
-                height: hp(0.7),
+                height: hp(0.5),
                 backgroundColor: '#cccccc',
               }}
             />
+          }
+          ListEmptyComponent={
+            search.length > 0 && (
+              <View
+                style={{
+                  flex: 1,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}
+              >
+                <Text style={{ fontSize: fontSize(16), fontWeight: 'bold' }}>
+                  No Contacts Found
+                </Text>
+              </View>
+            )
           }
         />
       ) : (
@@ -419,7 +450,12 @@ const InitialchatScreen = () => {
               onChangeText={txt => setFirstname(txt)}
             />
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+            }}
+          >
             <Text>{texts.last_name} :</Text>
             <TextInput
               placeholder="Enter Last Name"

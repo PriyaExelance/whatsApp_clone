@@ -8,6 +8,8 @@ export const lightTheme = {
   chat_button: '#0CCC83',
   btn_text: '#000000',
   disabled_button: ' #00000070',
+  msg_text: '#FFFFFF',
+  msges: '#E7FFDB',
 };
 
 export const darkTheme = {
@@ -20,4 +22,6 @@ export const darkTheme = {
   chat_button: '#0CCC83',
   btn_text: '#FFFFFF',
   disabled_button: '#1b5e4a',
+  msg_text: '#1F2C34',
+  msges: '#005D4B',
 };
