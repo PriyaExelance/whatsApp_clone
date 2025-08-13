@@ -1,5 +1,5 @@
 //import liraries
-import React, { Component, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,10 +10,9 @@ import {
 } from 'react-native';
 import { wp, hp, fontSize } from '../helper/responsive';
 import { texts } from '../helper/strings';
-import { fontFamily } from '../assets/fontFamily';
 import { images } from '../assets/images';
 import { useNavigation } from '@react-navigation/native';
-import { lightTheme, darkTheme } from '../helper/colors';
+import { lightTheme, darkTheme, colors } from '../helper/colors';
 import { getAuth } from '@react-native-firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -45,87 +44,40 @@ const WelcomeScreen = () => {
   const fullText = texts.termspolicy;
   const blueText = 'Privacy Policy';
 
-  // Split the string based on the text you want to color
   const parts = fullText.split(blueText);
 
   const full_Text = texts.terms_service;
   const blue_Text = 'Teams of Service';
 
-  // Split the string based on the text you want to color
   const parts1 = full_Text.split(blue_Text);
 
   return (
     <View
       style={[styles.container, { backgroundColor: themeStyles.background }]}
     >
-      <View
-        style={{
-          justifyContent: 'center',
-          alignItems: 'center',
-          marginTop: hp(85),
-          flex: 1,
-        }}
-      >
-        <Text
-          style={{
-            fontSize: fontSize(30),
-            fontWeight: 'bold',
-            color: themeStyles.texts,
-          }}
-        >
+      <View style={styles.wlc_header}>
+        <Text style={[styles.wlc_text, { color: themeStyles.texts }]}>
           {texts.wlc}
         </Text>
-        <View
-          style={{
-            alignItems: 'center',
-            width: wp(250),
-            height: wp(250),
-            borderRadius: wp(153),
-            marginTop: hp(38),
-          }}
-        >
+        <View style={styles.img_view}>
           <Image
             source={colorScheme === 'light' ? images.wlc_img : images.green}
           />
         </View>
-        <View
-          style={{
-            alignItems: 'center',
-            marginTop: hp(55),
-          }}
-        >
-          <Text
-            style={{
-              fontSize: fontSize(13),
-              textAlign: 'center',
-              color: themeStyles.texts,
-            }}
-          >
+        <View style={styles.text_terms}>
+          <Text style={[styles.txt_policy, { color: themeStyles.texts }]}>
             {parts[0]}
-            <Text style={{ color: '#3965d5' }}>{blueText}</Text>
+            <Text style={styles.txt_color}>{blueText}</Text>
             {parts[1]}
           </Text>
-          <Text
-            style={{
-              fontSize: fontSize(13),
-              textAlign: 'center',
-              color: themeStyles.texts,
-            }}
-          >
+          <Text style={[styles.txt_policy, { color: themeStyles.texts }]}>
             {parts1[0]}
-            <Text style={{ color: '#3965d5' }}>{blue_Text}</Text>
+            <Text style={styles.txt_color}>{blue_Text}</Text>
             {parts1[1]}
           </Text>
         </View>
         <TouchableOpacity
-          style={{
-            marginTop: hp(24),
-            height: hp(39),
-            paddingHorizontal: wp(57),
-            borderRadius: 4,
-            backgroundColor: '#00A884',
-            justifyContent: 'center',
-          }}
+          style={styles.agree_continue}
           onPress={() => {
             navigation.navigate('PhoneNumScreen');
           }}
@@ -133,17 +85,11 @@ const WelcomeScreen = () => {
           <Text style={{ color: themeStyles.btn_text }}>{texts.agree}</Text>
         </TouchableOpacity>
       </View>
-      <View
-        style={{
-          justifyContent: 'center',
-          alignItems: 'center',
-          marginBottom: hp(64),
-        }}
-      >
-        <Text style={{ fontSize: fontSize(12), color: themeStyles.texts }}>
+      <View style={styles.bottom_txt}>
+        <Text style={[styles.from_txt, { color: themeStyles.texts }]}>
           {texts.from}
         </Text>
-        <Text style={{ fontSize: fontSize(15), color: themeStyles.texts }}>
+        <Text style={[styles.facebook_txt, { color: themeStyles.texts }]}>
           {texts.facebook}
         </Text>
       </View>
@@ -153,10 +99,33 @@ const WelcomeScreen = () => {
 
 // define your styles
 const styles = StyleSheet.create({
+  bottom_txt: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: hp(64),
+  },
+  facebook_txt: { fontSize: fontSize(15) },
+  from_txt: { fontSize: fontSize(12) },
+  agree_continue: {
+    marginTop: hp(24),
+    height: hp(39),
+    borderRadius: wp(4),
+    backgroundColor: colors.lightGreen,
+    justifyContent: 'center',
+    paddingHorizontal: wp(57),
+  },
+  txt_color: { color: colors.blue },
+  txt_policy: { fontSize: fontSize(13), textAlign: 'center' },
+  text_terms: { marginTop: hp(55) },
+  img_view: { marginTop: hp(38) },
+  wlc_text: {
+    fontSize: fontSize(30),
+    fontWeight: 'bold',
+  },
+  wlc_header: { justifyContent: 'center', alignItems: 'center', flex: 1 },
   container: {
     flex: 1,
   },
 });
 
-//make this component available to the app
 export default WelcomeScreen;

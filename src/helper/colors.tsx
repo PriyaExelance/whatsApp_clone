@@ -25,3 +25,19 @@ export const darkTheme = {
   msg_text: '#1F2C34',
   msges: '#005D4B',
 };
+
+export const colors = {
+  green: '#02A884',
+  white: '#FFFFFF',
+  darkgreen: '#008069',
+  gray: 'gray',
+  yellow: '#E7FFDB',
+  cream: '#cccccc',
+  dark_gray: '#595C6B',
+  light_gray: '#889095',
+  btn: '#008665',
+  lightGreen: '#00A884',
+  blue: '#3965d5',
+  back: '#E9ECEF',
+  dd: '#151E26',
+};

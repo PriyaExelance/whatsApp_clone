@@ -23,4 +23,5 @@ export const texts = {
   first_name: 'First Name',
   last_name: 'Last Name',
   phone: 'Phone No ',
+  ResendCode: 'Resend Code',
 };

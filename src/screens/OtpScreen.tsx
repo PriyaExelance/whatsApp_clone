@@ -15,7 +15,7 @@ import { fontFamily } from '../assets/fontFamily';
 import { images } from '../assets/images';
 import { useNavigation } from '@react-navigation/native';
 import { OtpInput } from 'react-native-otp-entry';
-import { lightTheme, darkTheme } from '../helper/colors';
+import { lightTheme, darkTheme, colors } from '../helper/colors';
 import { useRoute } from '@react-navigation/native';
 
 const OtpScreen = () => {
@@ -27,7 +27,7 @@ const OtpScreen = () => {
   const [timeLeft, setTimeLeft] = useState(60);
   const [canResend, setCanResend] = useState(false);
   const resendCode = texts.resend_code;
-  const timer = '56';
+  const timer = '60';
   const splitted = resendCode.split(timer);
   const { confirmation, phone } = route.params;
   const firstTwoDigits = phone.substring(0, 2);
@@ -44,7 +44,7 @@ const OtpScreen = () => {
       setCanResend(true);
     }
 
-    return () => clearInterval(timer); // Cleanup
+    return () => clearInterval(timer);
   }, [timeLeft]);
 
   const confirmCode = async () => {
@@ -60,42 +60,24 @@ const OtpScreen = () => {
     <View
       style={[styles.container, { backgroundColor: themeStyles.background }]}
     >
-      <View
-        style={{
-          marginTop: hp(61),
-          paddingHorizontal: wp(20),
-          flexDirection: 'row',
-          alignItems: 'center',
-        }}
-      >
+      <View style={styles.otp_header}>
         <TouchableOpacity onPress={() => navigation.goBack('PhoneNumScreen')}>
           <Image
             source={images.back}
-            style={{
-              width: wp(20),
-              height: wp(20),
-              marginRight: wp(12),
-              tintColor: themeStyles.texts,
-            }}
+            style={[styles.back_btn, { tintColor: themeStyles.texts }]}
           />
         </TouchableOpacity>
-        <Text
-          style={{
-            fontSize: fontSize(24),
-            fontWeight: '500',
-            color: themeStyles.texts,
-          }}
-        >
+        <Text style={[styles.header, { color: themeStyles.texts }]}>
           {texts.enter_otp}
         </Text>
       </View>
 
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <Text style={{ fontSize: fontSize(15), color: themeStyles.texts }}>
+      <View style={styles.otp_entryHeader}>
+        <Text style={[styles.code_send, { color: themeStyles.texts }]}>
           {texts.code_send}
           {main}
         </Text>
-        <View style={{ paddingVertical: hp(57), paddingHorizontal: wp(30) }}>
+        <View style={styles.otp_entry_view}>
           <OtpInput
             numberOfDigits={6}
             onTextChange={setCode}
@@ -120,41 +102,34 @@ const OtpScreen = () => {
               setTimeLeft(60), setCanResend(false);
             }}
           >
-            <Text style={{ fontSize: fontSize(15), color: themeStyles.texts }}>
-              Resend Code
+            <Text style={[styles.code_send, { color: themeStyles.texts }]}>
+              {texts.ResendCode}
             </Text>
           </TouchableOpacity>
         ) : (
-          <Text style={{ fontSize: fontSize(15), color: themeStyles.texts }}>
+          <Text style={[styles.code_send, { color: themeStyles.texts }]}>
             {splitted[0]}
-
-            <Text style={{ color: '#3eb89b' }}>{timeLeft}</Text>
-
+            <Text style={styles.timeLeft}>{timeLeft}</Text>
             {splitted[1]}
           </Text>
         )}
       </View>
       <TouchableOpacity
-        style={{
-          marginHorizontal: wp(30),
-          padding: hp(10),
-          justifyContent: 'center',
-          alignItems: 'center',
-          marginBottom: hp(60),
-          backgroundColor:
-            code.length !== 6
-              ? themeStyles.disabled_button
-              : themeStyles.verify_button,
-          borderRadius: wp(25),
-        }}
+        style={[
+          styles.otp_textinput,
+          {
+            backgroundColor:
+              code.length !== 6
+                ? themeStyles.disabled_button
+                : themeStyles.verify_button,
+          },
+        ]}
         onPress={() => {
           confirmCode();
         }}
         disabled={code.length !== 6}
       >
-        <Text
-          style={{ color: themeStyles.verify_text, fontSize: fontSize(18) }}
-        >
+        <Text style={[styles.verify_btn, { color: themeStyles.verify_text }]}>
           {texts.verify}
         </Text>
       </TouchableOpacity>
@@ -162,11 +137,29 @@ const OtpScreen = () => {
   );
 };
 const styles = StyleSheet.create({
+  verify_btn: { fontSize: fontSize(18) },
+  otp_textinput: {
+    marginHorizontal: wp(30),
+    padding: hp(10),
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: hp(60),
+    borderRadius: wp(25),
+  },
+  timeLeft: { color: colors.green },
+  otp_entry_view: { paddingVertical: hp(57), paddingHorizontal: wp(30) },
+  code_send: { fontSize: fontSize(15) },
+  otp_entryHeader: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  header: { fontSize: fontSize(24), fontWeight: '500' },
+  back_btn: { width: wp(20), height: wp(20), marginRight: wp(12) },
+  otp_header: {
+    marginTop: hp(61),
+    paddingHorizontal: wp(20),
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   container: {
     flex: 1,
   },
-  activePinCodeContainer: { borderColor: 'black' },
-  pinCodeContainer: { width: wp(40), borderColor: 'black' },
-  focusStick: { backgroundColor: 'black' },
 });
 export default OtpScreen;
