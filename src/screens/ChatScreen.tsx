@@ -11,7 +11,7 @@ import {
   FlatList,
   ScrollView,
 } from 'react-native';
-import { lightTheme, darkTheme } from '../helper/colors';
+import { lightTheme, darkTheme, colors } from '../helper/colors';
 import { hp, wp, fontSize } from '../helper/responsive';
 import { images } from '../assets/images';
 import auth from '@react-native-firebase/auth';
@@ -26,11 +26,13 @@ const ChatScreen = ({ route }) => {
   const colorScheme = useColorScheme();
   const [msg, setMsg] = useState('');
   const [messages, setMessages] = useState([]);
+  const [docsVisible, setDocsVisible] = useState(false);
   const [isVisible, setVisible] = useState(false);
   const reversedMessages = [...messages].reverse();
   const navigation = useNavigation();
   const themeStyles = colorScheme === 'light' ? lightTheme : darkTheme;
   const currentUserId = auth().currentUser?.uid || '';
+  const [image, setImage] = useState('');
 
   const imgs = [
     {
@@ -89,15 +91,18 @@ const ChatScreen = ({ route }) => {
   }, [chatID]);
   const handleSend = async (messageText, userId) => {
     try {
-      const chatRef = firebase.firestore().collection('chats').doc(chatID);
-      await chatRef.update({
-        messages: firebase.firestore.FieldValue.arrayUnion({
-          text: messageText,
-          createdAt: new Date(),
-          sender_id: userId,
-        }),
-      });
-      console.log('Message added to array!');
+      if (chatID) {
+        const chatRef = firebase.firestore().collection('chats').doc(chatID);
+        await chatRef.update({
+          messages: firebase.firestore.FieldValue.arrayUnion({
+            text: messageText,
+            createdAt: new Date(),
+            sender_id: userId,
+            image: image,
+          }),
+        });
+        console.log('Message added to array!');
+      }
     } catch (error) {
       const chatRef = firebase.firestore().collection('chats').doc(chatID);
       await chatRef.set({
@@ -105,33 +110,30 @@ const ChatScreen = ({ route }) => {
           text: messageText,
           createdAt: new Date(),
           sender_id: userId,
+          image: image,
         }),
       });
       console.log('Message added to array!');
     }
   };
 
+  const render_Attachments = ({ item }) => (
+    <View style={styles.render_gallery}>
+      <TouchableOpacity>
+        <Image source={{ uri: item.img_1 }} style={styles.atach_img} />
+      </TouchableOpacity>
+    </View>
+  );
+
   const renderItem = ({ item }) => (
-    <View
-      style={{
-        marginBottom: hp(10),
-        borderRadius: wp(8),
-      }}
-    >
+    <View style={styles.render_gallery}>
       <TouchableOpacity
         onPress={() => {
           setVisible(!isVisible);
+          setImage(item.img_1);
         }}
       >
-        <Image
-          source={{ uri: item.img_1 }}
-          style={{
-            width: wp(150),
-            height: hp(150),
-            margin: 10,
-            resizeMode: 'cover',
-          }}
-        />
+        <Image source={{ uri: item.img_1 }} style={styles.gallery_img} />
       </TouchableOpacity>
     </View>
   );
@@ -143,13 +145,12 @@ const ChatScreen = ({ route }) => {
           styles.render_senderMsg,
           {
             alignSelf: msgid ? 'flex-end' : 'flex-start',
-
-            backgroundColor: msgid ? themeStyles.msges : '#1F2C34',
+            backgroundColor: themeStyles.msges,
           },
         ]}
       >
         <Text style={{ color: themeStyles.texts }}>{item.text}</Text>
-        <Text style={{ fontSize: 12, color: 'gray', alignSelf: 'flex-end' }}>
+        <Text style={styles.created_date}>
           {item.createdAt
             ?.toDate()
             .toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -171,136 +172,69 @@ const ChatScreen = ({ route }) => {
         { backgroundColor: themeStyles.chat_background },
       ]}
     >
-      <View style={{ backgroundColor: '#008069', paddingHorizontal: wp(10) }}>
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            marginTop: hp(36),
-            marginBottom: hp(10),
-          }}
-        >
+      <View style={styles.header_view}>
+        <View style={styles.header_name}>
           <TouchableOpacity
             onPress={() => navigation.goBack('InitialchatScreen')}
           >
-            <Image
-              source={images.back_arrow}
-              style={{ width: wp(20), height: wp(20) }}
-            />
+            <Image source={images.back_arrow} style={styles.profile_pic} />
           </TouchableOpacity>
 
-          <View
-            style={{
-              width: wp(53),
-              height: hp(53),
-              borderRadius: wp(26.5),
-              marginLeft: wp(4),
-            }}
-          >
-            <Image
-              source={{ uri: img }}
-              style={{ width: wp(53), height: hp(53), borderRadius: wp(26.5) }}
-            />
+          <View style={styles.pic_view}>
+            <Image source={{ uri: img }} style={styles.pic_sizing} />
           </View>
-          <View style={{ flex: 1, marginLeft: wp(14) }}>
-            <Text
-              style={{
-                fontSize: fontSize(18),
-                color: '#FFFFFF',
-                fontWeight: 'bold',
-              }}
-            >
+          <View style={styles.chat_name}>
+            <Text style={styles.text_style}>
               {firstname} {lastname}
             </Text>
-            <Text style={{ color: '#FFFFFF' }}>Online</Text>
+            <Text style={styles.online_txt}>Online</Text>
           </View>
-          <Image source={images.video} style={{ marginRight: wp(26) }} />
-          <Image source={images.phone} style={{ marginRight: wp(26) }} />
-          <Image source={images.settings} style={{ tintColor: '#FFFFFF' }} />
+          <Image source={images.video} style={styles.icon_margin} />
+          <Image source={images.phone} style={styles.icon_margin} />
+          <Image source={images.settings} style={styles.setting_img} />
         </View>
       </View>
       <FlatList
-        contentContainerStyle={{
-          paddingHorizontal: wp(22),
-          paddingVertical: hp(24),
-        }}
+        contentContainerStyle={styles.message_list}
         data={reversedMessages}
         renderItem={renderMessage}
         keyExtractor={item => item.id}
         inverted={true}
       />{' '}
-      <View
-        style={{
-          paddingHorizontal: wp(12),
-          flexDirection: 'row',
-          alignItems: 'center',
-          marginBottom: hp(18),
-        }}
-      >
+      <View style={styles.text_msgview}>
         <View
-          style={{
-            backgroundColor: themeStyles.msg_text,
-            justifyContent: 'space-between',
-            borderRadius: wp(25),
-            flexDirection: 'row',
-            paddingHorizontal: wp(15),
-            flex: 1,
-          }}
+          style={[
+            styles.send_msgview,
+            { backgroundColor: themeStyles.msg_text },
+          ]}
         >
-          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+          <View style={styles.textinput_msg}>
             <Image source={images.emoji} />
             <TextInput
               placeholder="Message"
               value={msg}
-              onChangeText={txt => setMsg(txt)}
-              placeholderTextColor="#8798A0"
-              style={{
-                fontSize: fontSize(18),
-                marginLeft: wp(20),
-                flex: 1,
-                color: themeStyles.texts,
+              onChangeText={txt => {
+                setMsg(txt);
               }}
+              placeholderTextColor="#8798A0"
+              style={[styles.txt_inputStyle, { color: themeStyles.texts }]}
             />
           </View>
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-            }}
-          >
-            <TouchableOpacity>
+          <View style={styles.icons_view}>
+            <TouchableOpacity onPress={() => setDocsVisible(!docsVisible)}>
               <Image source={images.attach} />
             </TouchableOpacity>
             <TouchableOpacity>
-              <Image source={images.payment} style={{ marginLeft: wp(14) }} />
+              <Image source={images.payment} style={styles.payment_icon} />
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setVisible(!isVisible)}>
-              <Image source={images.camera2} style={{ marginLeft: wp(18) }} />
+              <Image source={images.camera2} style={styles.camera_icon} />
             </TouchableOpacity>
           </View>
         </View>
-        <TouchableOpacity
-          style={{
-            width: wp(50),
-            height: hp(50),
-            borderRadius: wp(25),
-            backgroundColor: '#02A884',
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginLeft: wp(14),
-          }}
-          onPress={handleSendMessage}
-        >
+        <TouchableOpacity style={styles.mike_icon} onPress={handleSendMessage}>
           {msg.length > 0 ? (
-            <Image
-              source={images.send}
-              style={{
-                tintColor: 'white',
-                width: wp(20),
-                height: wp(20),
-                resizeMode: 'contain',
-              }}
-            />
+            <Image source={images.send} style={styles.send_icon} />
           ) : (
             <Image source={images.mike} />
           )}
@@ -308,22 +242,33 @@ const ChatScreen = ({ route }) => {
       </View>
       <Modal
         isVisible={isVisible}
-        style={{
-          justifyContent: 'center',
-          alignItems: 'center',
-        }}
+        style={styles.modal_open}
         onBackdropPress={() => setVisible(false)}
       >
-        <FlatList
-          data={imgs}
-          renderItem={renderItem}
-          numColumns={2}
-          keyExtractor={(item: any) => item.id}
-          contentContainerStyle={{
-            alignItems: 'center',
-            backgroundColor: 'white',
-          }}
-        />
+        <View style={styles.modal_viewStyle}>
+          <FlatList
+            data={imgs}
+            renderItem={renderItem}
+            numColumns={2}
+            keyExtractor={(item: any) => item.id}
+            contentContainerStyle={styles.list_img}
+          />
+        </View>
+      </Modal>
+      <Modal
+        isVisible={docsVisible}
+        style={styles.modal_open}
+        onBackdropPress={() => setDocsVisible(false)}
+      >
+        <View style={styles.modal_viewStyle}>
+          <FlatList
+            data={imgs}
+            renderItem={render_Attachments}
+            numColumns={3}
+            keyExtractor={(item: any) => item.id}
+            contentContainerStyle={styles.list_img}
+          />
+        </View>
       </Modal>
     </View>
   );
@@ -331,11 +276,95 @@ const ChatScreen = ({ route }) => {
 
 // define your styles
 const styles = StyleSheet.create({
+  modal_viewStyle: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: wp(16),
+    borderTopRightRadius: wp(16),
+  },
+  list_img: { backgroundColor: 'white' },
+  modal_open: { justifyContent: 'flex-end' },
+  send_icon: {
+    tintColor: 'white',
+    width: wp(20),
+    height: wp(20),
+    resizeMode: 'contain',
+  },
+  mike_icon: {
+    width: wp(50),
+    height: hp(50),
+    borderRadius: wp(25),
+    backgroundColor: colors.green,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: wp(14),
+  },
+  camera_icon: { marginLeft: wp(18) },
+  payment_icon: { marginLeft: wp(14) },
+  icons_view: { flexDirection: 'row', alignItems: 'center' },
+  txt_inputStyle: {
+    fontSize: fontSize(18),
+    marginLeft: wp(20),
+    flex: 1,
+  },
+  textinput_msg: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  send_msgview: {
+    justifyContent: 'space-between',
+    borderRadius: wp(25),
+    flexDirection: 'row',
+    paddingHorizontal: wp(15),
+    flex: 1,
+  },
+  text_msgview: {
+    paddingHorizontal: wp(12),
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: hp(18),
+  },
+  message_list: { paddingHorizontal: wp(22), paddingVertical: hp(24) },
+  setting_img: { tintColor: colors.white },
+  icon_margin: { marginRight: wp(26) },
+  online_txt: { color: colors.white },
+  text_style: {
+    fontSize: fontSize(18),
+    color: colors.white,
+    fontWeight: 'bold',
+  },
+  chat_name: { flex: 1, marginLeft: wp(14) },
+  pic_sizing: { width: wp(53), height: hp(53), borderRadius: wp(26.5) },
+  pic_view: {
+    width: wp(53),
+    height: wp(53),
+    borderRadius: wp(26.5),
+    marginLeft: wp(4),
+  },
+  profile_pic: { width: wp(20), height: wp(20) },
+  header_name: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: hp(36),
+    marginBottom: hp(10),
+  },
+  header_view: { backgroundColor: colors.darkgreen, paddingHorizontal: wp(10) },
+  created_date: { fontSize: 12, color: colors.gray, alignSelf: 'flex-end' },
+  gallery_img: {
+    width: wp(150),
+    height: hp(150),
+    margin: wp(10),
+    resizeMode: 'cover',
+  },
+  atach_img: {
+    width: wp(90),
+    height: wp(90),
+    marginHorizontal: wp(10),
+    marginVertical: hp(10),
+  },
+  render_gallery: { borderRadius: wp(8) },
+
   render_senderMsg: {
     padding: wp(10),
     marginTop: hp(5),
     borderRadius: wp(10),
-    backgroundColor: '#E7FFDB',
+    backgroundColor: colors.yellow,
     paddingHorizontal: wp(16),
   },
   container: {

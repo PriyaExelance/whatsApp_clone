@@ -7,7 +7,6 @@ import {
   TextInput,
   Alert,
   useColorScheme,
-  ImageBackground,
   FlatList,
 } from 'react-native';
 import { wp, hp, fontSize } from '../helper/responsive';
@@ -16,7 +15,7 @@ import { texts } from '../helper/strings';
 import { images } from '../assets/images';
 import { useNavigation } from '@react-navigation/native';
 
-import { lightTheme, darkTheme } from '../helper/colors';
+import { lightTheme, darkTheme, colors } from '../helper/colors';
 
 import Modal from 'react-native-modal';
 import { useEffect, useState } from 'react';
@@ -39,10 +38,11 @@ const InitialchatScreen = () => {
   const [showSearchinput, setSearchinput] = useState(false);
   const [search, setSearch] = useState('');
   const [filteredData, setFilteredData] = useState(users);
-
+  const user = auth().currentUser?.uid;
+  const [selected, setSelected] = useState([]);
+  const themeStyles = colorScheme === 'light' ? lightTheme : darkTheme;
   const toggleSearch = () => {
     setSearchinput(!showSearchinput);
-
     if (showSearchinput) {
       setSearch('');
       fetchUsers();
@@ -56,7 +56,6 @@ const InitialchatScreen = () => {
         item.firstname.toLowerCase().includes(text.toLowerCase()) ||
         item.lastname.toLowerCase().includes(text.toLowerCase()),
     );
-    console.log(filtered);
     if (filtered.length > 0) {
       setFilteredData(filtered);
     } else {
@@ -65,15 +64,16 @@ const InitialchatScreen = () => {
   };
   useEffect(() => {
     fetchUsers();
+    if (user) {
+      setModalVisible(!isModalVisible);
+    }
   }, []);
-  const user = auth().currentUser?.uid;
+
   const handleLogout = async () => {
     const auth = getAuth();
-    const user = auth.currentUser;
     try {
       await signOut(auth);
       await AsyncStorage.removeItem('user');
-      console.log('User token removed successfully!');
       navigation.navigate('WelcomeScreen');
     } catch (error) {
       console.error('Error removing user token:', error);
@@ -143,26 +143,13 @@ const InitialchatScreen = () => {
   };
 
   const renderItem = ({ item }) => (
-    <View
-      style={{
-        marginBottom: hp(10),
-        borderRadius: wp(8),
-      }}
-    >
+    <View style={styles.images_render}>
       <TouchableOpacity
         onPress={() => {
           setImage(item.img_1), setVisible(!isVisible);
         }}
       >
-        <Image
-          source={{ uri: item.img_1 }}
-          style={{
-            width: wp(150),
-            height: hp(150),
-            margin: 10,
-            resizeMode: 'cover',
-          }}
-        />
+        <Image source={{ uri: item.img_1 }} style={styles.images_sizing} />
       </TouchableOpacity>
     </View>
   );
@@ -171,11 +158,7 @@ const InitialchatScreen = () => {
     {
       return (
         <TouchableOpacity
-          style={{
-            paddingVertical: hp(15),
-            paddingHorizontal: wp(16),
-            flexDirection: 'row',
-          }}
+          style={styles.user_list}
           onPress={() =>
             navigation.navigate('ChatScreen', {
               id: item.id,
@@ -185,47 +168,25 @@ const InitialchatScreen = () => {
             })
           }
         >
-          <View
-            style={{
-              width: wp(50),
-              height: wp(50),
-              borderRadius: wp(25),
-            }}
-          >
-            <Image
-              source={{ uri: item.img }}
-              style={{
-                width: wp(50),
-                height: wp(50),
-                borderRadius: wp(25),
-              }}
-            />
+          <View style={styles.profile_pic}>
+            <Image source={{ uri: item.img }} style={styles.profile_imgSize} />
           </View>
-          <View style={{ marginLeft: wp(20) }}>
-            <Text
-              style={{
-                fontSize: fontSize(14),
-                fontWeight: 'bold',
-                color: themeStyles.texts,
-              }}
-            >
+          <View style={styles.name_view2}>
+            <Text style={[styles.names, { color: themeStyles.texts }]}>
               {item.firstname} {item.lastname}
             </Text>
-            <Text style={{ color: '#889095' }}>{item.phone}</Text>
+            <Text style={styles.phone_no}>{item.phone}</Text>
           </View>
         </TouchableOpacity>
       );
     }
   };
-  const themeStyles = colorScheme === 'light' ? lightTheme : darkTheme;
 
   const addUserData = async userData => {
-    const user = auth().currentUser?.uid;
     if (user) {
       console.log('users ', user);
       const uid = user;
       console.log('u id ', uid);
-
       firestore()
         .collection('users')
         .doc(uid)
@@ -268,24 +229,13 @@ const InitialchatScreen = () => {
     >
       <View style={styles.header_color}>
         {showSearchinput ? (
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              marginHorizontal: wp(15),
-              marginTop: hp(36),
-              borderRadius: wp(16),
-              backgroundColor: '#595C6B',
-              justifyContent: 'space-between',
-              paddingHorizontal: wp(12),
-            }}
-          >
+          <View style={styles.search_text}>
             <TextInput
               value={search}
               onChangeText={handleSearch}
               placeholder=" Ask Meta AI or Search..."
               placeholderTextColor="white"
-              style={{ color: 'white', flex: 1 }}
+              style={styles.search_textInput}
               cursorColor="white"
             />
             <TouchableOpacity
@@ -293,15 +243,12 @@ const InitialchatScreen = () => {
                 toggleSearch();
               }}
             >
-              <Image
-                source={images.cross}
-                style={{ width: wp(20), height: hp(20), tintColor: 'white' }}
-              />
+              <Image source={images.cross} style={styles.cross_img} />
             </TouchableOpacity>
           </View>
         ) : (
           <View style={styles.header}>
-            <View style={{ flex: 1 }}>
+            <View style={styles.whatsApp_header}>
               <Text style={styles.whtsapp_color}>{texts.whatsapp}</Text>
             </View>
             <View style={styles.header_icons}>
@@ -318,13 +265,13 @@ const InitialchatScreen = () => {
           <Image source={images.camera} />
           {wp_categories.map(item => (
             <TouchableOpacity
-              style={{
-                alignItems: 'center',
-                flex: 1,
-                borderBottomWidth: selectedItem === item.id ? 2 : 0,
-                paddingBottom: hp(8),
-                borderBottomColor: selectedItem === item.id && 'white',
-              }}
+              style={[
+                styles.categories_header,
+                {
+                  borderBottomWidth: selectedItem === item.id ? 2 : 0,
+                  borderBottomColor: selectedItem === item.id ? 'white' : '',
+                },
+              ]}
               key={item.id}
               onPress={() => {
                 setSelectedItem(item.id);
@@ -340,109 +287,43 @@ const InitialchatScreen = () => {
       </TouchableOpacity>
       {users.length > 0 ? (
         <FlatList
-          contentContainerStyle={{ flex: 1 }}
+          contentContainerStyle={styles.contentStyle}
           data={filteredData}
           renderItem={renderItem1}
           keyExtractor={item => item.id.toString()}
-          ItemSeparatorComponent={
-            <View
-              style={{
-                height: hp(0.5),
-                backgroundColor: '#cccccc',
-              }}
-            />
-          }
+          ItemSeparatorComponent={<View style={styles.user_listSeprator} />}
           ListEmptyComponent={
             search.length > 0 && (
-              <View
-                style={{
-                  flex: 1,
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                }}
-              >
-                <Text style={{ fontSize: fontSize(16), fontWeight: 'bold' }}>
-                  No Contacts Found
-                </Text>
+              <View style={styles.empty_list}>
+                <Text style={styles.noContacts}>No Contacts Found</Text>
               </View>
             )
           }
         />
       ) : (
-        <View
-          style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
-        >
+        <View style={styles.initialHeader}>
           <Image source={images.first} />
-          <Text style={{ fontSize: fontSize(32), marginTop: hp(85) }}>
-            {texts.chat_yet}
-          </Text>
-          <TouchableOpacity
-            style={{
-              width: wp(180),
-              height: hp(55),
-              borderRadius: wp(30),
-              justifyContent: 'center',
-              alignItems: 'center',
-              backgroundColor: '#0CCC83',
-              marginTop: hp(27),
-            }}
-          >
-            <Text
-              style={{
-                color: '#FFFFFF',
-                fontSize: fontSize(20),
-              }}
-            >
-              {texts.start}
-            </Text>
+          <Text style={styles.chat_text}>{texts.chat_yet}</Text>
+          <TouchableOpacity style={styles.start_chatting}>
+            <Text style={styles.start_btn}>{texts.start}</Text>
           </TouchableOpacity>
         </View>
       )}
+
       <Modal
         isVisible={isModalVisible}
         onBackdropPress={() => setModalVisible(!isModalVisible)}
       >
-        <View
-          style={{
-            backgroundColor: 'white',
-            borderRadius: wp(20),
-            paddingHorizontal: wp(16),
-            justifyContent: 'center',
-            alignItems: 'center',
-            padding: wp(30),
-          }}
-        >
-          <Text style={{ fontSize: fontSize(24) }}>{texts.user_details}</Text>
+        <View style={styles.user_modal}>
+          <Text style={styles.user_header}>{texts.user_details}</Text>
           <TouchableOpacity
-            style={{
-              marginTop: hp(10),
-              width: wp(50),
-              height: hp(50),
-              borderRadius: wp(25),
-              justifyContent: 'center',
-              alignItems: 'center',
-              borderWidth: 1,
-            }}
+            style={styles.selecting_img}
             onPress={() => setVisible(!isVisible)}
           >
-            <Image
-              source={{ uri: img }}
-              style={{
-                width: wp(50),
-                height: wp(50),
-                borderRadius: wp(25),
-                resizeMode: 'contain',
-              }}
-            />
+            <Image source={{ uri: img }} style={styles.profile_imgUri} />
           </TouchableOpacity>
 
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              marginTop: hp(10),
-            }}
-          >
+          <View style={styles.name_view}>
             <Text>{texts.first_name} :</Text>
             <TextInput
               placeholder="Enter First Name"
@@ -450,12 +331,7 @@ const InitialchatScreen = () => {
               onChangeText={txt => setFirstname(txt)}
             />
           </View>
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-            }}
-          >
+          <View style={styles.name_view}>
             <Text>{texts.last_name} :</Text>
             <TextInput
               placeholder="Enter Last Name"
@@ -463,7 +339,7 @@ const InitialchatScreen = () => {
               onChangeText={txt => setLastname(txt)}
             />
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <View style={styles.name_view}>
             <Text>{texts.phone} :</Text>
             <TextInput
               maxLength={10}
@@ -473,12 +349,7 @@ const InitialchatScreen = () => {
             />
           </View>
           <TouchableOpacity
-            style={{
-              backgroundColor: '#0CCC83',
-              padding: wp(10),
-              borderRadius: wp(16),
-              marginTop: hp(10),
-            }}
+            style={styles.submit_btn}
             onPress={() => {
               handleSubmit();
               setModalVisible(!isModalVisible);
@@ -497,14 +368,7 @@ const InitialchatScreen = () => {
           renderItem={renderItem}
           numColumns={2}
           keyExtractor={(item: any) => item.id}
-          contentContainerStyle={{
-            backgroundColor: 'white',
-            borderRadius: wp(20),
-            paddingHorizontal: wp(16),
-            justifyContent: 'center',
-            alignItems: 'center',
-            padding: wp(30),
-          }}
+          contentContainerStyle={styles.gallery_imgList}
         />
       </Modal>
     </View>
@@ -514,11 +378,98 @@ const InitialchatScreen = () => {
 export default InitialchatScreen;
 
 const styles = StyleSheet.create({
+  gallery_imgList: {
+    backgroundColor: colors.white,
+    borderRadius: wp(20),
+    paddingHorizontal: wp(16),
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: wp(30),
+  },
+  submit_btn: {
+    backgroundColor: colors.green,
+    padding: wp(10),
+    borderRadius: wp(16),
+    marginTop: hp(10),
+  },
+  last_name: { flexDirection: 'row', alignItems: 'center' },
+  name_view: { flexDirection: 'row', alignItems: 'center', marginTop: hp(10) },
+  profile_imgUri: {
+    width: wp(50),
+    height: wp(50),
+    borderRadius: wp(25),
+    resizeMode: 'contain',
+  },
+  selecting_img: {
+    marginTop: hp(10),
+    width: wp(50),
+    height: hp(50),
+    borderRadius: wp(25),
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  user_header: { fontSize: fontSize(24) },
+  user_modal: {
+    backgroundColor: colors.white,
+    borderRadius: wp(20),
+    paddingHorizontal: wp(16),
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: wp(30),
+  },
+  start_btn: { color: colors.white, fontSize: fontSize(20) },
+  start_chatting: {
+    width: wp(180),
+    height: hp(55),
+    borderRadius: wp(30),
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.green,
+    marginTop: hp(27),
+  },
+  chat_text: { fontSize: fontSize(32), marginTop: hp(85) },
+  initialHeader: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  noContacts: { fontSize: fontSize(16), fontWeight: 'bold' },
+  empty_list: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  contentStyle: { flex: 1 },
+  user_listSeprator: { height: hp(0.5), backgroundColor: colors.cream },
+  categories_header: { alignItems: 'center', flex: 1, paddingBottom: hp(8) },
+  whatsApp_header: { flex: 1 },
+  cross_img: { width: wp(20), height: hp(20), tintColor: colors.white },
+  search_textInput: { color: colors.white, flex: 1 },
+  search_text: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: wp(15),
+    marginTop: hp(36),
+    borderRadius: wp(16),
+    backgroundColor: colors.dark_gray,
+    justifyContent: 'space-between',
+    paddingHorizontal: wp(12),
+  },
+  phone_no: { color: colors.light_gray },
+  names: { fontSize: fontSize(14), fontWeight: 'bold' },
+  name_view2: { marginLeft: wp(20) },
+  profile_imgSize: { width: wp(50), height: wp(50), borderRadius: wp(25) },
+  profile_pic: { width: wp(50), height: wp(50), borderRadius: wp(25) },
+  user_list: {
+    paddingVertical: hp(15),
+    paddingHorizontal: wp(16),
+    flexDirection: 'row',
+  },
+  images_sizing: {
+    width: wp(150),
+    height: hp(150),
+    margin: 10,
+    resizeMode: 'cover',
+  },
+  images_render: { marginBottom: hp(10), borderRadius: wp(8) },
   floating_btn: {
     width: wp(53),
     height: hp(53),
     borderRadius: wp(26.5),
-    backgroundColor: '#008665',
+    backgroundColor: colors.btn,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'absolute',
@@ -527,7 +478,7 @@ const styles = StyleSheet.create({
   },
   category_name: {
     fontSize: fontSize(14),
-    color: '#FFFFFF',
+    color: colors.white,
     fontWeight: 'bold',
   },
   chats_header: {
@@ -537,11 +488,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: wp(6),
   },
   header_icons: { flexDirection: 'row' },
-  settings: { tintColor: '#FFFFFF', marginLeft: wp(23) },
+  settings: { tintColor: colors.white, marginLeft: wp(23) },
   img_size: { width: wp(20), height: wp(20) },
   whtsapp_color: {
     fontSize: fontSize(20),
-    color: '#FFFFFF',
+    color: colors.white,
     fontWeight: 'bold',
   },
   header: {
@@ -550,6 +501,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: wp(15),
     marginTop: hp(36),
   },
-  header_color: { backgroundColor: '#008069' },
+  header_color: { backgroundColor: colors.darkgreen },
   container: { flex: 1 },
 });
