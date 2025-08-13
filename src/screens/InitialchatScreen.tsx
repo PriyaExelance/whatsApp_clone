@@ -7,7 +7,6 @@ import {
   TextInput,
   Alert,
   useColorScheme,
-  ImageBackground,
   FlatList,
 } from 'react-native';
 import { wp, hp, fontSize } from '../helper/responsive';
@@ -40,6 +39,7 @@ const InitialchatScreen = () => {
   const [search, setSearch] = useState('');
   const [filteredData, setFilteredData] = useState(users);
   const user = auth().currentUser?.uid;
+  const [selected, setSelected] = useState([]);
   const themeStyles = colorScheme === 'light' ? lightTheme : darkTheme;
   const toggleSearch = () => {
     setSearchinput(!showSearchinput);

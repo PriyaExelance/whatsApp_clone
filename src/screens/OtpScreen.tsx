@@ -27,7 +27,7 @@ const OtpScreen = () => {
   const [timeLeft, setTimeLeft] = useState(60);
   const [canResend, setCanResend] = useState(false);
   const resendCode = texts.resend_code;
-  const timer = '60';
+  const timer = '56';
   const splitted = resendCode.split(timer);
   const { confirmation, phone } = route.params;
   const firstTwoDigits = phone.substring(0, 2);

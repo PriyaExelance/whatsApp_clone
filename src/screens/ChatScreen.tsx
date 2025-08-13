@@ -32,6 +32,7 @@ const ChatScreen = ({ route }) => {
   const navigation = useNavigation();
   const themeStyles = colorScheme === 'light' ? lightTheme : darkTheme;
   const currentUserId = auth().currentUser?.uid || '';
+  const [image, setImage] = useState('');
 
   const imgs = [
     {
@@ -90,15 +91,18 @@ const ChatScreen = ({ route }) => {
   }, [chatID]);
   const handleSend = async (messageText, userId) => {
     try {
-      const chatRef = firebase.firestore().collection('chats').doc(chatID);
-      await chatRef.update({
-        messages: firebase.firestore.FieldValue.arrayUnion({
-          text: messageText,
-          createdAt: new Date(),
-          sender_id: userId,
-        }),
-      });
-      console.log('Message added to array!');
+      if (chatID) {
+        const chatRef = firebase.firestore().collection('chats').doc(chatID);
+        await chatRef.update({
+          messages: firebase.firestore.FieldValue.arrayUnion({
+            text: messageText,
+            createdAt: new Date(),
+            sender_id: userId,
+            image: image,
+          }),
+        });
+        console.log('Message added to array!');
+      }
     } catch (error) {
       const chatRef = firebase.firestore().collection('chats').doc(chatID);
       await chatRef.set({
@@ -106,17 +110,27 @@ const ChatScreen = ({ route }) => {
           text: messageText,
           createdAt: new Date(),
           sender_id: userId,
+          image: image,
         }),
       });
       console.log('Message added to array!');
     }
   };
 
+  const render_Attachments = ({ item }) => (
+    <View style={styles.render_gallery}>
+      <TouchableOpacity>
+        <Image source={{ uri: item.img_1 }} style={styles.atach_img} />
+      </TouchableOpacity>
+    </View>
+  );
+
   const renderItem = ({ item }) => (
     <View style={styles.render_gallery}>
       <TouchableOpacity
         onPress={() => {
           setVisible(!isVisible);
+          setImage(item.img_1);
         }}
       >
         <Image source={{ uri: item.img_1 }} style={styles.gallery_img} />
@@ -199,7 +213,9 @@ const ChatScreen = ({ route }) => {
             <TextInput
               placeholder="Message"
               value={msg}
-              onChangeText={txt => setMsg(txt)}
+              onChangeText={txt => {
+                setMsg(txt);
+              }}
               placeholderTextColor="#8798A0"
               style={[styles.txt_inputStyle, { color: themeStyles.texts }]}
             />
@@ -229,13 +245,15 @@ const ChatScreen = ({ route }) => {
         style={styles.modal_open}
         onBackdropPress={() => setVisible(false)}
       >
-        <FlatList
-          data={imgs}
-          renderItem={renderItem}
-          numColumns={2}
-          keyExtractor={(item: any) => item.id}
-          contentContainerStyle={styles.list_img}
-        />
+        <View style={styles.modal_viewStyle}>
+          <FlatList
+            data={imgs}
+            renderItem={renderItem}
+            numColumns={2}
+            keyExtractor={(item: any) => item.id}
+            contentContainerStyle={styles.list_img}
+          />
+        </View>
       </Modal>
       <Modal
         isVisible={docsVisible}
@@ -243,8 +261,13 @@ const ChatScreen = ({ route }) => {
         onBackdropPress={() => setDocsVisible(false)}
       >
         <View style={styles.modal_viewStyle}>
-          {/* <Text>HELLO</Text> */}
-          {/* remainig */}
+          <FlatList
+            data={imgs}
+            renderItem={render_Attachments}
+            numColumns={3}
+            keyExtractor={(item: any) => item.id}
+            contentContainerStyle={styles.list_img}
+          />
         </View>
       </Modal>
     </View>
@@ -329,7 +352,14 @@ const styles = StyleSheet.create({
     margin: wp(10),
     resizeMode: 'cover',
   },
-  render_gallery: { marginBottom: hp(10), borderRadius: wp(8) },
+  atach_img: {
+    width: wp(90),
+    height: wp(90),
+    marginHorizontal: wp(10),
+    marginVertical: hp(10),
+  },
+  render_gallery: { borderRadius: wp(8) },
+
   render_senderMsg: {
     padding: wp(10),
     marginTop: hp(5),
