@@ -34,6 +34,7 @@ const OtpScreen = () => {
   const lastTwoDigits = phone.substring(phone.length - 2);
   const main = `+91 ${firstTwoDigits}******${lastTwoDigits}`;
 
+
   useEffect(() => {
     let timers;
     if (timeLeft > 0) {

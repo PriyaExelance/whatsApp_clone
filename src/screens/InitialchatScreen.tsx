@@ -135,8 +135,9 @@ const InitialchatScreen = () => {
   const fetchUsers = async () => {
     try {
       const userList = await getUsers();
-      setUsers(userList);
       setFilteredData(userList);
+      const user_data = userList.filter(item => item.id !== user);
+      setFilteredData(user_data);
     } catch (error) {
       Alert.alert('Error in fetching users', error.message);
     }

@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   FlatList,
   ScrollView,
+  LayoutAnimation,
 } from 'react-native';
 import { lightTheme, darkTheme, colors } from '../helper/colors';
 import { hp, wp, fontSize } from '../helper/responsive';
@@ -33,6 +34,7 @@ const ChatScreen = ({ route }) => {
   const themeStyles = colorScheme === 'light' ? lightTheme : darkTheme;
   const currentUserId = auth().currentUser?.uid || '';
   const [image, setImage] = useState('');
+  const [selectedImg, setSelectedImg] = useState([]);
 
   const imgs = [
     {
@@ -89,20 +91,45 @@ const ChatScreen = ({ route }) => {
 
     return () => unsubscribe();
   }, [chatID]);
+
+  const sendPhotos = async (url, userId) => {
+    try {
+      const chatRef = firebase.firestore().collection('chats').doc(chatID);
+      await chatRef.update({
+        messages: firebase.firestore.FieldValue.arrayUnion({
+          img: url,
+          createdAt: new Date(),
+          sender_id: userId,
+          type: 'image',
+        }),
+      });
+
+      console.log('Message added to array!');
+    } catch (error) {
+      const chatRef = firebase.firestore().collection('chats').doc(chatID);
+      await chatRef.set({
+        messages: firebase.firestore.FieldValue.arrayUnion({
+          img: url,
+          createdAt: new Date(),
+          sender_id: userId,
+          type: 'image',
+        }),
+      });
+    }
+  };
+
   const handleSend = async (messageText, userId) => {
     try {
-      if (chatID) {
-        const chatRef = firebase.firestore().collection('chats').doc(chatID);
-        await chatRef.update({
-          messages: firebase.firestore.FieldValue.arrayUnion({
-            text: messageText,
-            createdAt: new Date(),
-            sender_id: userId,
-            image: image,
-          }),
-        });
-        console.log('Message added to array!');
-      }
+      const chatRef = firebase.firestore().collection('chats').doc(chatID);
+      await chatRef.update({
+        messages: firebase.firestore.FieldValue.arrayUnion({
+          text: messageText,
+          createdAt: new Date(),
+          sender_id: userId,
+          type: 'text',
+        }),
+      });
+      console.log('Message added to array!');
     } catch (error) {
       const chatRef = firebase.firestore().collection('chats').doc(chatID);
       await chatRef.set({
@@ -110,7 +137,6 @@ const ChatScreen = ({ route }) => {
           text: messageText,
           createdAt: new Date(),
           sender_id: userId,
-          image: image,
         }),
       });
       console.log('Message added to array!');
@@ -125,18 +151,38 @@ const ChatScreen = ({ route }) => {
     </View>
   );
 
-  const renderItem = ({ item }) => (
-    <View style={styles.render_gallery}>
-      <TouchableOpacity
-        onPress={() => {
-          setVisible(!isVisible);
-          setImage(item.img_1);
-        }}
-      >
-        <Image source={{ uri: item.img_1 }} style={styles.gallery_img} />
-      </TouchableOpacity>
-    </View>
-  );
+  const handleImageSelection = id => {
+    if (selectedImg.includes(id)) {
+      setSelectedImg(selectedImg.filter(imageId => imageId !== id));
+    } else {
+      setSelectedImg([...selectedImg, id]);
+    }
+  };
+
+  const renderItem = ({ item }) => {
+    const selected = selectedImg.includes(item.id);
+    return (
+      <View style={styles.render_gallery}>
+        <TouchableOpacity
+          style={[styles.selected_img, { opacity: selected ? 0.5 : 1 }]}
+          onPress={() => {
+            handleImageSelection(item.id);
+          }}
+        >
+          <Image source={{ uri: item.img_1 }} style={styles.gallery_img} />
+        </TouchableOpacity>
+        {/* {selected && (
+          <View style={{ justifyContent: 'center', alignItems: 'center' }}>
+            {' '}
+            <Image
+              source={images.check}
+              style={{ width: wp(20), height: wp(20) }}
+            />{' '}
+          </View> */}
+        {/* )} */}
+      </View>
+    );
+  };
   const renderMessage = ({ item }) => {
     const msgid = item.sender_id === currentUserId;
     return (
@@ -149,7 +195,15 @@ const ChatScreen = ({ route }) => {
           },
         ]}
       >
-        <Text style={{ color: themeStyles.texts }}>{item.text}</Text>
+        {item.type === 'text' && (
+          <Text style={{ color: themeStyles.texts }}>{item.text}</Text>
+        )}{' '}
+        {item.type === 'image' && (
+          <Image
+            source={item.img}
+            style={{ width: wp(150), height: wp(150) }}
+          />
+        )}
         <Text style={styles.created_date}>
           {item.createdAt
             ?.toDate()
@@ -251,8 +305,19 @@ const ChatScreen = ({ route }) => {
             renderItem={renderItem}
             numColumns={2}
             keyExtractor={(item: any) => item.id}
-            contentContainerStyle={styles.list_img}
+            contentContainerStyle={styles.list_imgs}
           />
+          <TouchableOpacity
+            style={{
+              backgroundColor: colors.dd,
+              padding: 10,
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
+            onPress={() => sendPhotos(image, currentUserId)}
+          >
+            <Text style={{ color: colors.white }}>Send</Text>
+          </TouchableOpacity>
         </View>
       </Modal>
       <Modal
@@ -266,7 +331,7 @@ const ChatScreen = ({ route }) => {
             renderItem={render_Attachments}
             numColumns={3}
             keyExtractor={(item: any) => item.id}
-            contentContainerStyle={styles.list_img}
+            contentContainerStyle={styles.list_imgs}
           />
         </View>
       </Modal>
@@ -276,12 +341,20 @@ const ChatScreen = ({ route }) => {
 
 // define your styles
 const styles = StyleSheet.create({
+  selected_img: {
+    width: wp(150),
+    height: hp(150),
+    margin: wp(10),
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  list_img: { width: wp(20), height: hp(20) },
   modal_viewStyle: {
     backgroundColor: 'white',
     borderTopLeftRadius: wp(16),
     borderTopRightRadius: wp(16),
   },
-  list_img: { backgroundColor: 'white' },
+  list_imgs: { backgroundColor: 'white' },
   modal_open: { justifyContent: 'flex-end' },
   send_icon: {
     tintColor: 'white',
@@ -349,7 +422,7 @@ const styles = StyleSheet.create({
   gallery_img: {
     width: wp(150),
     height: hp(150),
-    margin: wp(10),
+
     resizeMode: 'cover',
   },
   atach_img: {
@@ -366,6 +439,14 @@ const styles = StyleSheet.create({
     borderRadius: wp(10),
     backgroundColor: colors.yellow,
     paddingHorizontal: wp(16),
+  },
+  selectionOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 255, 0.3)', // Semi-transparent blue overlay
   },
   container: {
     flex: 1,

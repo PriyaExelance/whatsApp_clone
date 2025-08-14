@@ -21,4 +21,5 @@ export const images = {
   meta: require('./images/meta.jpg'),
   cross: require('./images/cross_small.png'),
   send: require('./images/send.png'),
+  check: require('./images/check.png'),
 };
