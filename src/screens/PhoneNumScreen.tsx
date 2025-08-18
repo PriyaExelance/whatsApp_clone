@@ -1,5 +1,5 @@
 //import liraries
-import React, { Component, use, useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -12,13 +12,12 @@ import {
 } from 'react-native';
 import { wp, hp, fontSize } from '../helper/responsive';
 import { texts } from '../helper/strings';
-import { fontFamily } from '../assets/fontFamily';
+
 import { images } from '../assets/images';
 import { useNavigation } from '@react-navigation/native';
-import { lightTheme, darkTheme } from '../helper/colors';
+import { lightTheme, darkTheme, colors } from '../helper/colors';
 import Countrypicker from 'react-native-country-picker-modal';
 import auth from '@react-native-firebase/auth';
-import { getAuth, onAuthStateChanged } from '@react-native-firebase/auth';
 
 // create a component
 const PhoneNumScreen = () => {
@@ -28,8 +27,6 @@ const PhoneNumScreen = () => {
   const [countryCode, setCountryCode] = useState('+91');
   const [phone, setPhone] = useState('');
   const [visible, setVisible] = useState(false);
-  const [confirm, setConfirm] = useState(null);
-
   const fullText = texts.wp_num;
   const blue_text = 'What’s my number?';
   const parts = fullText.split(blue_text);
@@ -56,133 +53,62 @@ const PhoneNumScreen = () => {
     <View
       style={[styles.container, { backgroundColor: themeStyles.background }]}
     >
-      <View style={{ flex: 1 }}>
-        <View
-          style={{
-            marginTop: hp(91),
-            justifyContent: 'center',
-            flexDirection: 'row',
-            alignItems: 'center',
-          }}
-        >
-          <Text
-            style={{
-              fontSize: fontSize(20),
-              textAlign: 'center',
-              fontWeight: '500',
-              color: themeStyles.texts,
-            }}
-          >
+      <View style={styles.top_view}>
+        <View style={styles.header_view}>
+          <Text style={[styles.header_txt, { color: themeStyles.texts }]}>
             {texts.enter_ph}
           </Text>
           <Image
             source={images.settings}
-            style={{
-              resizeMode: 'contain',
-              marginLeft: wp(26),
-              tintColor: themeStyles.texts,
-            }}
+            style={[styles.setting_img, { tintColor: themeStyles.texts }]}
           />
         </View>
-        <View style={{ paddingHorizontal: wp(37), marginTop: hp(35) }}>
-          <Text
-            style={{
-              textAlign: 'center',
-              fontSize: fontSize(13),
-              color: themeStyles.texts,
-            }}
-          >
+        <View style={styles.verify_phone}>
+          <Text style={[styles.verify_phoneText, { color: themeStyles.texts }]}>
             {parts[0]}
-            <Text style={{ color: '#3965d5' }}>{blue_text}</Text>
+            <Text style={styles.parted_textcolor}>{blue_text}</Text>
             {parts[1]}
           </Text>
         </View>
-        <View style={{ marginTop: hp(61) }}>
-          <TouchableOpacity
-            style={{
-              flexDirection: 'row',
-              justifyContent: 'center',
-            }}
-            onPress={() => setVisible(!visible)}
-          >
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                padding: hp(10),
-                width: wp(230),
-                justifyContent: 'space-between',
-                borderColor: '#00A884',
-                borderBottomWidth: 0.5,
-              }}
-            >
-              <View />
-              <Text style={{ color: themeStyles.texts }}>{countryName}</Text>
-              <Image
-                source={images.dd}
-                style={{ tintColor: themeStyles.texts }}
-              />
-            </View>
-          </TouchableOpacity>
-          <View
-            style={{
-              flexDirection: 'row',
-              justifyContent: 'center',
-            }}
-          >
-            <View
-              style={{
-                alignItems: 'center',
-                borderColor: '#00A884',
-                borderBottomWidth: 1,
-                width: wp(55),
-                marginRight: wp(15),
-                justifyContent: 'center',
-              }}
-            >
-              <Text style={{ color: themeStyles.texts }}>{countryCode}</Text>
-            </View>
-            <View
-              style={{
-                borderColor: '#00A884',
-                borderBottomWidth: 1,
-                width: wp(160),
-              }}
-            >
-              <TextInput
-                placeholder="Enter phone number"
-                value={phone}
-                onChangeText={txt => setPhone(txt)}
-                keyboardType="number-pad"
-                style={{ color: themeStyles.texts }}
-              />
-            </View>
+
+        <TouchableOpacity
+          style={styles.country_modal}
+          onPress={() => setVisible(!visible)}
+        >
+          <View style={styles.country_view}>
+            <View />
+            <Text style={{ color: themeStyles.texts }}>{countryName}</Text>
+            <Image
+              source={images.dd}
+              style={{ tintColor: themeStyles.texts }}
+            />
+          </View>
+        </TouchableOpacity>
+        <View style={styles.number_view}>
+          <View style={styles.country_codeView}>
+            <Text style={{ color: themeStyles.texts }}>{countryCode}</Text>
+          </View>
+          <View style={styles.phone_view}>
+            <TextInput
+              placeholder="Enter phone number"
+              value={phone}
+              onChangeText={txt => setPhone(txt)}
+              keyboardType="number-pad"
+              style={{ color: themeStyles.texts }}
+            />
           </View>
         </View>
-        <View style={{ alignItems: 'center', marginTop: hp(7) }}>
-          <Text style={{ fontSize: fontSize(11) }}>{texts.carrier}</Text>
+
+        <View style={styles.charges_view}>
+          <Text style={styles.carrier_text}>{texts.carrier}</Text>
         </View>
       </View>
-      <View style={{ alignItems: 'center' }}>
+      <View style={styles.next_btnView}>
         <TouchableOpacity
-          style={{
-            justifyContent: 'center',
-            alignItems: 'center',
-            marginBottom: hp(56),
-            backgroundColor: '#00A884',
-            borderRadius: wp(3),
-            width: wp(60),
-            height: hp(28),
-          }}
+          style={styles.next_btn}
           onPress={() => handlePhoneAuth()}
         >
-          <Text
-            style={{
-              fontSize: fontSize(12),
-              fontWeight: '600',
-              color: themeStyles.btn_text,
-            }}
-          >
+          <Text style={[styles.next_text, { color: themeStyles.btn_text }]}>
             {texts.next}
           </Text>
         </TouchableOpacity>
@@ -201,13 +127,72 @@ const PhoneNumScreen = () => {
   );
 };
 
-// define your styles
 const styles = StyleSheet.create({
+  carrier_text: { fontSize: fontSize(11) },
+  next_text: { fontSize: fontSize(12), fontWeight: '600' },
+  next_btn: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: hp(56),
+    backgroundColor: colors.lightGreen,
+    borderRadius: wp(3),
+    width: wp(60),
+    height: hp(28),
+  },
+  next_btnView: { alignItems: 'center' },
+  charges_view: { alignItems: 'center', marginTop: hp(7) },
+  phone_view: {
+    borderColor: colors.lightGreen,
+    borderBottomWidth: 1,
+    width: wp(160),
+  },
+  country_codeView: {
+    alignItems: 'center',
+    borderColor: colors.lightGreen,
+    borderBottomWidth: 1,
+    width: wp(55),
+    marginRight: wp(15),
+    justifyContent: 'center',
+  },
+  number_view: { flexDirection: 'row', justifyContent: 'center' },
+  country_view: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: hp(10),
+    width: wp(230),
+    borderColor: colors.lightGreen,
+    borderBottomWidth: 0.5,
+    justifyContent: 'space-between',
+  },
+  country_modal: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: hp(24),
+  },
+  parted_textcolor: { color: colors.blue },
+  verify_phoneText: { textAlign: 'center', fontSize: fontSize(13) },
+  verify_phone: { paddingHorizontal: wp(36), marginTop: hp(35) },
+  setting_img: {
+    resizeMode: 'contain',
+    marginLeft: wp(26),
+  },
+  header_txt: {
+    fontSize: fontSize(20),
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  header_view: {
+    marginTop: hp(91),
+    justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  top_view: { flex: 1 },
   container: {
     flex: 1,
   },
   dropdownMenuStyle: {
-    backgroundColor: '#E9ECEF',
+    backgroundColor: colors.back,
   },
   dropdownItemStyle: {
     width: '100%',
@@ -221,7 +206,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 12,
     fontWeight: '500',
-    color: '#151E26',
+    color: colors.dd,
   },
 });
 

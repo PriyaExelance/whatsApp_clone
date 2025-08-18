@@ -20,4 +20,5 @@ export const images = {
   attach: require('./images/attach.png'),
   meta: require('./images/meta.jpg'),
   cross: require('./images/cross_small.png'),
+  send: require('./images/send.png'),
 };
