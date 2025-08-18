@@ -10,7 +10,6 @@ import {
   TouchableOpacity,
   FlatList,
   ScrollView,
-  LayoutAnimation,
 } from 'react-native';
 import { lightTheme, darkTheme, colors } from '../helper/colors';
 import { hp, wp, fontSize } from '../helper/responsive';
@@ -33,7 +32,6 @@ const ChatScreen = ({ route }) => {
   const navigation = useNavigation();
   const themeStyles = colorScheme === 'light' ? lightTheme : darkTheme;
   const currentUserId = auth().currentUser?.uid || '';
-  const [image, setImage] = useState('');
   const [selectedImg, setSelectedImg] = useState([]);
 
   const imgs = [
@@ -95,51 +93,60 @@ const ChatScreen = ({ route }) => {
   const sendPhotos = async (url, userId) => {
     try {
       const chatRef = firebase.firestore().collection('chats').doc(chatID);
-      await chatRef.update({
-        messages: firebase.firestore.FieldValue.arrayUnion({
-          img: url,
-          createdAt: new Date(),
-          sender_id: userId,
-          type: 'image',
-        }),
-      });
-
-      console.log('Message added to array!');
+      const docExists = await chatRef.get();
+      if (docExists.exists) {
+        await chatRef.update({
+          messages: firebase.firestore.FieldValue.arrayUnion({
+            img: url,
+            createdAt: new Date(),
+            sender_id: userId,
+            type: 'image',
+          }),
+        });
+        setSelectedImg([]);
+        setVisible(!isVisible);
+      } else {
+        await chatRef.set({
+          messages: firebase.firestore.FieldValue.arrayUnion({
+            img: url,
+            createdAt: new Date(),
+            sender_id: userId,
+            type: 'image',
+          }),
+        });
+        setSelectedImg([]);
+        setVisible(!isVisible);
+      }
     } catch (error) {
-      const chatRef = firebase.firestore().collection('chats').doc(chatID);
-      await chatRef.set({
-        messages: firebase.firestore.FieldValue.arrayUnion({
-          img: url,
-          createdAt: new Date(),
-          sender_id: userId,
-          type: 'image',
-        }),
-      });
+      console.log(error);
     }
   };
 
   const handleSend = async (messageText, userId) => {
     try {
       const chatRef = firebase.firestore().collection('chats').doc(chatID);
-      await chatRef.update({
-        messages: firebase.firestore.FieldValue.arrayUnion({
-          text: messageText,
-          createdAt: new Date(),
-          sender_id: userId,
-          type: 'text',
-        }),
-      });
-      console.log('Message added to array!');
+      const docRef = await chatRef.get();
+      if (docRef.exists) {
+        await chatRef.update({
+          messages: firebase.firestore.FieldValue.arrayUnion({
+            text: messageText,
+            createdAt: new Date(),
+            sender_id: userId,
+            type: 'text',
+          }),
+        });
+      } else {
+        await chatRef.set({
+          messages: firebase.firestore.FieldValue.arrayUnion({
+            text: messageText,
+            createdAt: new Date(),
+            sender_id: userId,
+            type: 'text',
+          }),
+        });
+      }
     } catch (error) {
-      const chatRef = firebase.firestore().collection('chats').doc(chatID);
-      await chatRef.set({
-        messages: firebase.firestore.FieldValue.arrayUnion({
-          text: messageText,
-          createdAt: new Date(),
-          sender_id: userId,
-        }),
-      });
-      console.log('Message added to array!');
+      console.log(error);
     }
   };
 
@@ -151,40 +158,43 @@ const ChatScreen = ({ route }) => {
     </View>
   );
 
-  const handleImageSelection = id => {
-    if (selectedImg.includes(id)) {
-      setSelectedImg(selectedImg.filter(imageId => imageId !== id));
+  const handleImageSelection = (id, url) => {
+    const exists = selectedImg.some(item_id => item_id === id);
+    if (exists) {
+      setSelectedImg(selectedImg.filter(img_id => img_id !== id));
     } else {
-      setSelectedImg([...selectedImg, id]);
+      setSelectedImg([...selectedImg, { id, url }]);
     }
   };
 
   const renderItem = ({ item }) => {
-    const selected = selectedImg.includes(item.id);
+    const selected = selectedImg.some(img => img.id === item.id);
+
     return (
       <View style={styles.render_gallery}>
         <TouchableOpacity
           style={[styles.selected_img, { opacity: selected ? 0.5 : 1 }]}
           onPress={() => {
-            handleImageSelection(item.id);
+            handleImageSelection(item.id, item.img_1);
           }}
         >
-          <Image source={{ uri: item.img_1 }} style={styles.gallery_img} />
+          <Image source={{ uri: item.img_1 }} style={[styles.gallery_img]} />
         </TouchableOpacity>
-        {/* {selected && (
+        {selected && (
           <View style={{ justifyContent: 'center', alignItems: 'center' }}>
             {' '}
             <Image
               source={images.check}
               style={{ width: wp(20), height: wp(20) }}
             />{' '}
-          </View> */}
-        {/* )} */}
+          </View>
+        )}
       </View>
     );
   };
   const renderMessage = ({ item }) => {
     const msgid = item.sender_id === currentUserId;
+
     return (
       <ScrollView
         style={[
@@ -198,12 +208,23 @@ const ChatScreen = ({ route }) => {
         {item.type === 'text' && (
           <Text style={{ color: themeStyles.texts }}>{item.text}</Text>
         )}{' '}
-        {item.type === 'image' && (
-          <Image
-            source={item.img}
-            style={{ width: wp(150), height: wp(150) }}
-          />
-        )}
+        {item.type === 'image' && item.img
+          ? item.img.map((imgObj, index) => (
+              <TouchableOpacity>
+                <Image
+                  key={imgObj.id || index}
+                  source={{ uri: imgObj.url }}
+                  style={{
+                    width: wp(150),
+                    height: wp(150),
+                    borderRadius: 8,
+                    marginBottom: hp(5),
+                  }}
+                  resizeMode="cover"
+                />
+              </TouchableOpacity>
+            ))
+          : ''}
         <Text style={styles.created_date}>
           {item.createdAt
             ?.toDate()
@@ -297,7 +318,7 @@ const ChatScreen = ({ route }) => {
       <Modal
         isVisible={isVisible}
         style={styles.modal_open}
-        onBackdropPress={() => setVisible(false)}
+        onBackdropPress={() => setVisible(!isVisible)}
       >
         <View style={styles.modal_viewStyle}>
           <FlatList
@@ -314,7 +335,7 @@ const ChatScreen = ({ route }) => {
               justifyContent: 'center',
               alignItems: 'center',
             }}
-            onPress={() => sendPhotos(image, currentUserId)}
+            onPress={() => sendPhotos(selectedImg, currentUserId)}
           >
             <Text style={{ color: colors.white }}>Send</Text>
           </TouchableOpacity>
@@ -440,13 +461,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.yellow,
     paddingHorizontal: wp(16),
   },
-  selectionOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 255, 0.3)', // Semi-transparent blue overlay
+
+  render_images: {
+    flexDirection: 'row', // Arrange images horizontally
+    alignItems: 'center', // Align images vertically in the center
+    justifyContent: 'center', // Center images horizontally within the container
+    padding: 5, // Add some padding around the images
   },
   container: {
     flex: 1,
