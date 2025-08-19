@@ -34,7 +34,6 @@ const OtpScreen = () => {
   const lastTwoDigits = phone.substring(phone.length - 2);
   const main = `+91 ${firstTwoDigits}******${lastTwoDigits}`;
 
-
   useEffect(() => {
     let timers;
     if (timeLeft > 0) {
@@ -104,7 +103,7 @@ const OtpScreen = () => {
             }}
           >
             <Text style={[styles.code_send, { color: themeStyles.texts }]}>
-              {texts.ResendCode}
+              {texts.resend_code_txt}
             </Text>
           </TouchableOpacity>
         ) : (

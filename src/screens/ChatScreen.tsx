@@ -20,6 +20,8 @@ import firebase from '@react-native-firebase/app';
 import moment from 'moment';
 import Modal from 'react-native-modal';
 
+// this screen functionality remaining
+
 // create a component
 const ChatScreen = ({ route }) => {
   const { id, img, firstname, lastname } = route.params;
@@ -33,6 +35,7 @@ const ChatScreen = ({ route }) => {
   const themeStyles = colorScheme === 'light' ? lightTheme : darkTheme;
   const currentUserId = auth().currentUser?.uid || '';
   const [selectedImg, setSelectedImg] = useState([]);
+  const [imgVisible, setImgVisible] = useState(false);
 
   const imgs = [
     {
@@ -192,8 +195,25 @@ const ChatScreen = ({ route }) => {
       </View>
     );
   };
+
   const renderMessage = ({ item }) => {
     const msgid = item.sender_id === currentUserId;
+    const imgArray = Array.isArray(item.img) ? item.img : [];
+    console.log(
+      'item',
+      moment(item.createdAt.toDate()).format('YYYY-MM-DD HH:mm:ss'),
+    );
+
+    const handlePress = imgArray.filter(img_id => img_id.id !== item.id);
+    console.log('abcccc', handlePress);
+
+    const render_Images = ({ item }) => {
+      <View style={styles.render_gallery}>
+        <TouchableOpacity>
+          <Image source={{ uri: item.url }} style={styles.atach_img} />
+        </TouchableOpacity>
+      </View>;
+    };
 
     return (
       <ScrollView
@@ -207,32 +227,114 @@ const ChatScreen = ({ route }) => {
       >
         {item.type === 'text' && (
           <Text style={{ color: themeStyles.texts }}>{item.text}</Text>
-        )}{' '}
-        {item.type === 'image' && item.img
-          ? item.img.map((imgObj, index) => (
-              <TouchableOpacity>
-                <Image
-                  key={imgObj.id || index}
-                  source={{ uri: imgObj.url }}
+        )}
+
+        {item.type === 'image' && (
+          <View
+            style={{
+              flexDirection: 'row',
+              flexWrap: 'wrap',
+            }}
+          >
+            {imgArray.slice(0, 4).map((imgObj, imgIndex) => {
+              let t_width = wp(120);
+              let t_height = wp(120);
+
+              if (imgArray.length === 3) {
+                if (imgIndex === 0 || 1) {
+                  t_width = wp(120);
+                  t_height = wp(120);
+                }
+                if (imgIndex === 2) {
+                  t_width = wp(120);
+                  t_height = wp(120);
+                }
+              } else if (imgArray.length === 2) {
+                if (imgIndex === 0 || 1) {
+                  t_width = wp(120);
+                  t_height = wp(120);
+                }
+              } else if (imgArray.length === 4) {
+                t_width = wp(120);
+                t_height = wp(120);
+              } else if (imgArray.length > 4) {
+                t_width = wp(120);
+                t_height = wp(120);
+              }
+
+              const isLast = imgIndex === 3 && imgArray.length > 4;
+
+              return (
+                <TouchableOpacity
+                  key={imgObj.id || imgIndex}
                   style={{
-                    width: wp(150),
-                    height: wp(150),
+                    width: t_width,
+                    height: t_height,
                     borderRadius: 8,
-                    marginBottom: hp(5),
+                    overflow: 'hidden',
+                    margin: 2,
                   }}
-                  resizeMode="cover"
-                />
-              </TouchableOpacity>
-            ))
-          : ''}
+                >
+                  <Image
+                    source={{ uri: imgObj.url }}
+                    style={{
+                      width: t_width,
+                      height: t_height,
+                      alignSelf: msgid ? 'flex-end' : 'flex-start',
+                    }}
+                    resizeMode="cover"
+                  />
+
+                  {isLast && (
+                    <TouchableOpacity
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        bottom: 0,
+                        right: 0,
+                        left: 0,
+                        backgroundColor: 'rgba(0,0,0,0.5)',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                      }}
+                      onPress={() => {
+                        setImgVisible(!imgVisible);
+                        console.log(handlePress);
+                      }}
+                    >
+                      <Text style={{ color: colors.white, fontSize: 20 }}>
+                        +{imgArray.length - 4}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                  <Modal
+                    style={styles.modal_open}
+                    isVisible={imgVisible}
+                    onBackdropPress={() => setImgVisible(!imgVisible)}
+                  >
+                    <View style={styles.modal_viewStyle}>
+                      <FlatList
+                        data={handlePress}
+                        renderItem={render_Images}
+                        keyExtractor={(item: any) => item.id}
+                        contentContainerStyle={styles.list_imgs}
+                      />
+                    </View>
+                  </Modal>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
+
+        {/* TIMESTAMP */}
         <Text style={styles.created_date}>
-          {item.createdAt
-            ?.toDate()
-            .toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          {moment(item.createdAt.toDate()).format(' HH:mm')}
         </Text>
       </ScrollView>
     );
   };
+
   const handleSendMessage = () => {
     if (msg.trim()) {
       handleSend(msg, currentUserId);
@@ -462,16 +564,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: wp(16),
   },
 
-  render_images: {
-    flexDirection: 'row', // Arrange images horizontally
-    alignItems: 'center', // Align images vertically in the center
-    justifyContent: 'center', // Center images horizontally within the container
-    padding: 5, // Add some padding around the images
-  },
   container: {
     flex: 1,
   },
 });
 
-//make this component available to the app
 export default ChatScreen;
