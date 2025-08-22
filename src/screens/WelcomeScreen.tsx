@@ -28,7 +28,6 @@ const WelcomeScreen = () => {
     if (user) {
       try {
         await AsyncStorage.setItem('currentUser', JSON.stringify(user));
-
         navigation.replace('InitialchatScreen');
       } catch (error) {
         console.error('Error saving user to AsyncStorage:', error);

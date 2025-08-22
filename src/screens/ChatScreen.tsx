@@ -20,8 +20,6 @@ import firebase from '@react-native-firebase/app';
 import moment from 'moment';
 import Modal from 'react-native-modal';
 
-// this screen functionality remaining
-
 // create a component
 const ChatScreen = ({ route }) => {
   const { id, img, firstname, lastname } = route.params;
@@ -30,12 +28,12 @@ const ChatScreen = ({ route }) => {
   const [messages, setMessages] = useState([]);
   const [docsVisible, setDocsVisible] = useState(false);
   const [isVisible, setVisible] = useState(false);
-  const reversedMessages = [...messages].reverse();
   const navigation = useNavigation();
   const themeStyles = colorScheme === 'light' ? lightTheme : darkTheme;
   const currentUserId = auth().currentUser?.uid || '';
   const [selectedImg, setSelectedImg] = useState([]);
   const [imgVisible, setImgVisible] = useState(false);
+  const [image_select, setImageSelect] = useState([]);
 
   const imgs = [
     {
@@ -84,7 +82,7 @@ const ChatScreen = ({ route }) => {
       .onSnapshot(snapshot => {
         const data = snapshot.data();
         if (data && data.messages) {
-          setMessages(data.messages);
+          setMessages(data.messages.reverse());
         } else {
           setMessages([]);
         }
@@ -161,13 +159,23 @@ const ChatScreen = ({ route }) => {
     </View>
   );
 
+  const render_Images = ({ item }) => (
+    <View style={styles.render_gallery}>
+      <TouchableOpacity>
+        <Image source={{ uri: item.url }} style={styles.preview_imgs} />
+      </TouchableOpacity>
+    </View>
+  );
+
   const handleImageSelection = (id, url) => {
-    const exists = selectedImg.some(item_id => item_id === id);
-    if (exists) {
-      setSelectedImg(selectedImg.filter(img_id => img_id !== id));
-    } else {
-      setSelectedImg([...selectedImg, { id, url }]);
-    }
+    setSelectedImg(prevSelected => {
+      const exists = prevSelected.some(img => img.id === id);
+      if (exists) {
+        return prevSelected.filter(img => img.id !== id);
+      } else {
+        return [...prevSelected, { id, url }];
+      }
+    });
   };
 
   const renderItem = ({ item }) => {
@@ -184,154 +192,139 @@ const ChatScreen = ({ route }) => {
           <Image source={{ uri: item.img_1 }} style={[styles.gallery_img]} />
         </TouchableOpacity>
         {selected && (
-          <View style={{ justifyContent: 'center', alignItems: 'center' }}>
+          <View style={styles.added_images}>
             {' '}
-            <Image
-              source={images.check}
-              style={{ width: wp(20), height: wp(20) }}
-            />{' '}
+            <Image source={images.check} style={styles.profile_pic} />{' '}
           </View>
         )}
       </View>
     );
   };
 
-  const renderMessage = ({ item }) => {
+  const formatWhatsAppTime = timestamp => {
+    const messageTime = moment(timestamp);
+    const now = moment();
+
+    if (messageTime.isSame(now, 'day')) {
+      return 'Today';
+    } else if (messageTime.isSame(moment().subtract(1, 'day'), 'day')) {
+      return 'Yesterday';
+    } else {
+      return messageTime.format('DD/MM/YYYY');
+    }
+  };
+
+  const renderMessage = ({ item, index }) => {
     const msgid = item.sender_id === currentUserId;
     const imgArray = Array.isArray(item.img) ? item.img : [];
-    console.log(
-      'item',
-      moment(item.createdAt.toDate()).format('YYYY-MM-DD HH:mm:ss'),
-    );
+    let showHeader = false;
+    const current_moment = moment(item.createdAt.toDate()).format('DD-MM-YYYY');
 
-    const handlePress = imgArray.filter(img_id => img_id.id !== item.id);
-    console.log('abcccc', handlePress);
-
-    const render_Images = ({ item }) => {
-      <View style={styles.render_gallery}>
-        <TouchableOpacity>
-          <Image source={{ uri: item.url }} style={styles.atach_img} />
-        </TouchableOpacity>
-      </View>;
-    };
-
+    const msgMoment = moment(item.createdAt.toDate());
+    const previous_msg = messages[index + 1];
+    const prevMoment = previous_msg?.createdAt
+      ? moment(previous_msg.createdAt.toDate()).format('DD-MM-YYYY')
+      : '';
+    if (!previous_msg || current_moment !== prevMoment) {
+      showHeader = true;
+    }
     return (
-      <ScrollView
-        style={[
-          styles.render_senderMsg,
-          {
-            alignSelf: msgid ? 'flex-end' : 'flex-start',
-            backgroundColor: themeStyles.msges,
-          },
-        ]}
-      >
-        {item.type === 'text' && (
-          <Text style={{ color: themeStyles.texts }}>{item.text}</Text>
-        )}
-
-        {item.type === 'image' && (
-          <View
-            style={{
-              flexDirection: 'row',
-              flexWrap: 'wrap',
-            }}
-          >
-            {imgArray.slice(0, 4).map((imgObj, imgIndex) => {
-              let t_width = wp(120);
-              let t_height = wp(120);
-
-              if (imgArray.length === 3) {
-                if (imgIndex === 0 || 1) {
-                  t_width = wp(120);
-                  t_height = wp(120);
-                }
-                if (imgIndex === 2) {
-                  t_width = wp(120);
-                  t_height = wp(120);
-                }
-              } else if (imgArray.length === 2) {
-                if (imgIndex === 0 || 1) {
-                  t_width = wp(120);
-                  t_height = wp(120);
-                }
-              } else if (imgArray.length === 4) {
-                t_width = wp(120);
-                t_height = wp(120);
-              } else if (imgArray.length > 4) {
-                t_width = wp(120);
-                t_height = wp(120);
-              }
-
-              const isLast = imgIndex === 3 && imgArray.length > 4;
-
-              return (
-                <TouchableOpacity
-                  key={imgObj.id || imgIndex}
-                  style={{
-                    width: t_width,
-                    height: t_height,
-                    borderRadius: 8,
-                    overflow: 'hidden',
-                    margin: 2,
-                  }}
-                >
-                  <Image
-                    source={{ uri: imgObj.url }}
-                    style={{
-                      width: t_width,
-                      height: t_height,
-                      alignSelf: msgid ? 'flex-end' : 'flex-start',
-                    }}
-                    resizeMode="cover"
-                  />
-
-                  {isLast && (
-                    <TouchableOpacity
-                      style={{
-                        position: 'absolute',
-                        top: 0,
-                        bottom: 0,
-                        right: 0,
-                        left: 0,
-                        backgroundColor: 'rgba(0,0,0,0.5)',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                      }}
-                      onPress={() => {
-                        setImgVisible(!imgVisible);
-                        console.log(handlePress);
-                      }}
-                    >
-                      <Text style={{ color: colors.white, fontSize: 20 }}>
-                        +{imgArray.length - 4}
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-                  <Modal
-                    style={styles.modal_open}
-                    isVisible={imgVisible}
-                    onBackdropPress={() => setImgVisible(!imgVisible)}
-                  >
-                    <View style={styles.modal_viewStyle}>
-                      <FlatList
-                        data={handlePress}
-                        renderItem={render_Images}
-                        keyExtractor={(item: any) => item.id}
-                        contentContainerStyle={styles.list_imgs}
-                      />
-                    </View>
-                  </Modal>
-                </TouchableOpacity>
-              );
-            })}
+      <View>
+        {showHeader && (
+          <View style={styles.dates_days}>
+            <Text style={[styles.time_text, { color: themeStyles.texts }]}>
+              {formatWhatsAppTime(msgMoment)}
+            </Text>
           </View>
         )}
 
-        {/* TIMESTAMP */}
-        <Text style={styles.created_date}>
-          {moment(item.createdAt.toDate()).format(' HH:mm')}
-        </Text>
-      </ScrollView>
+        <View
+          style={[
+            styles.render_senderMsg,
+            {
+              alignSelf: msgid ? 'flex-end' : 'flex-start',
+              backgroundColor: themeStyles.msges,
+            },
+          ]}
+        >
+          {item.type === 'text' && (
+            <Text style={{ color: themeStyles.texts }}>{item.text}</Text>
+          )}
+
+          {item.type === 'image' && (
+            <View
+              style={[
+                styles.image_chat,
+                { justifyContent: msgid ? 'flex-end' : 'flex-start' },
+              ]}
+            >
+              {imgArray.slice(0, 4).map((imgObj, imgIndex) => {
+                let t_width = wp(120);
+                let t_height = wp(120);
+
+                if (imgArray.length === 3) {
+                  if (imgIndex === 0 || 1 || 2) {
+                    t_width = wp(120);
+                  }
+                } else if (imgArray.length === 2) {
+                  if (imgIndex === 0 || 1) {
+                    t_width = wp(120);
+                  }
+                } else if (imgArray.length >= 4) {
+                  t_width = wp(120);
+                }
+
+                const isLast = imgIndex === 3 && imgArray.length > 4;
+                const handleImage = () => {
+                  setImageSelect(item.img);
+                  setImgVisible(true);
+                };
+
+                return (
+                  <TouchableOpacity
+                    key={imgObj.id || imgIndex}
+                    style={styles.image_click}
+                    onPress={() => {
+                      handleImage();
+                    }}
+                  >
+                    <Image
+                      source={{ uri: imgObj.url }}
+                      style={{
+                        width: t_width,
+                        height: t_height,
+                      }}
+                    />
+
+                    {isLast && (
+                      <TouchableOpacity
+                        style={[
+                          styles.added_imgtext,
+                          { backgroundColor: colors.black_shadow },
+                        ]}
+                        onPress={handleImage}
+                      >
+                        <Text style={{ color: colors.white, fontSize: 20 }}>
+                          +{imgArray.length - 4}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
+
+          <Text
+            style={[
+              styles.created_date,
+              { alignSelf: msgid ? 'flex-end' : 'flex-start' },
+            ]}
+          >
+            {moment(item.createdAt.toDate()).format(' HH:mm')}
+          </Text>
+        </View>
+      </View>
     );
   };
 
@@ -373,11 +366,11 @@ const ChatScreen = ({ route }) => {
       </View>
       <FlatList
         contentContainerStyle={styles.message_list}
-        data={reversedMessages}
+        data={messages}
         renderItem={renderMessage}
         keyExtractor={item => item.id}
-        inverted={true}
-      />{' '}
+        inverted
+      />
       <View style={styles.text_msgview}>
         <View
           style={[
@@ -458,12 +451,49 @@ const ChatScreen = ({ route }) => {
           />
         </View>
       </Modal>
+      <Modal
+        style={styles.modal_open}
+        isVisible={imgVisible}
+        onBackdropPress={() => setImgVisible(!imgVisible)}
+      >
+        <View style={styles.modal_image}>
+          <FlatList
+            data={image_select}
+            renderItem={render_Images}
+            keyExtractor={(item: any) => item.id}
+            contentContainerStyle={styles.list_imgs}
+          />
+          HELLO
+        </View>
+      </Modal>
     </View>
   );
 };
 
 // define your styles
 const styles = StyleSheet.create({
+  added_imgtext: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    right: 0,
+    left: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  image_click: { borderRadius: 8, overflow: 'hidden', margin: 2 },
+  image_chat: { flexDirection: 'row', flexWrap: 'wrap', maxWidth: wp(250) },
+  time_text: { fontSize: 12 },
+  dates_days: { alignSelf: 'center', marginVertical: 10 },
+  added_images: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    right: 0,
+    left: 0,
+  },
   selected_img: {
     width: wp(150),
     height: hp(150),
@@ -476,6 +506,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderTopLeftRadius: wp(16),
     borderTopRightRadius: wp(16),
+  },
+  modal_image: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    flex: 1,
   },
   list_imgs: { backgroundColor: 'white' },
   modal_open: { justifyContent: 'flex-end' },
@@ -545,8 +580,6 @@ const styles = StyleSheet.create({
   gallery_img: {
     width: wp(150),
     height: hp(150),
-
-    resizeMode: 'cover',
   },
   atach_img: {
     width: wp(90),
@@ -554,14 +587,24 @@ const styles = StyleSheet.create({
     marginHorizontal: wp(10),
     marginVertical: hp(10),
   },
-  render_gallery: { borderRadius: wp(8) },
+  preview_imgs: {
+    width: wp(150),
+    height: wp(150),
+    marginHorizontal: wp(10),
+    marginVertical: hp(10),
+  },
+  render_gallery: {
+    borderRadius: wp(8),
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 
   render_senderMsg: {
-    padding: wp(10),
     marginTop: hp(5),
     borderRadius: wp(10),
     backgroundColor: colors.yellow,
-    paddingHorizontal: wp(16),
+    paddingHorizontal: wp(11),
+    paddingVertical: hp(11),
   },
 
   container: {

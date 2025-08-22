@@ -39,19 +39,20 @@ const InitialchatScreen = () => {
   const [search, setSearch] = useState('');
   const [filteredData, setFilteredData] = useState(users);
   const user = auth().currentUser?.uid;
-  const [selected, setSelected] = useState([]);
+
   const themeStyles = colorScheme === 'light' ? lightTheme : darkTheme;
   const toggleSearch = () => {
     setSearchinput(!showSearchinput);
     if (showSearchinput) {
-      setSearch('');
       fetchUsers();
+      setSearch('');
     }
   };
 
   const handleSearch = text => {
     setSearch(text);
-    const filtered = users.filter(
+    const user_data = users.filter(item => item.id !== user);
+    const filtered = user_data.filter(
       item =>
         item.firstname.toLowerCase().includes(text.toLowerCase()) ||
         item.lastname.toLowerCase().includes(text.toLowerCase()),
@@ -63,10 +64,10 @@ const InitialchatScreen = () => {
     }
   };
   useEffect(() => {
-    fetchUsers();
     if (user) {
       setModalVisible(!isModalVisible);
     }
+    fetchUsers();
   }, []);
 
   const handleLogout = async () => {
@@ -183,6 +184,18 @@ const InitialchatScreen = () => {
     }
   };
 
+  const renderStatus = ({ item }) => {
+    {
+      return (
+        <TouchableOpacity style={styles.status_list}>
+          <View style={styles.profile_pic}>
+            <Image source={{ uri: item.img }} style={styles.profile_imgSize} />
+          </View>
+        </TouchableOpacity>
+      );
+    }
+  };
+
   const addUserData = async userData => {
     if (user) {
       console.log('users ', user);
@@ -276,6 +289,7 @@ const InitialchatScreen = () => {
               key={item.id}
               onPress={() => {
                 setSelectedItem(item.id);
+                console.log(selectedItem);
               }}
             >
               <Text style={styles.category_name}>{item.name}</Text>
@@ -286,13 +300,24 @@ const InitialchatScreen = () => {
       <TouchableOpacity style={styles.floating_btn}>
         <Image source={images.add_chats} />
       </TouchableOpacity>
-      {users.length > 0 ? (
+      {users.length > 0 || selectedItem ? (
         <FlatList
           contentContainerStyle={styles.contentStyle}
-          data={filteredData}
-          renderItem={renderItem1}
+          data={
+            selectedItem === 1 ? filteredData : selectedItem === 2 ? users : ''
+          }
+          renderItem={
+            selectedItem === 1
+              ? renderItem1
+              : selectedItem === 2
+              ? renderStatus
+              : ''
+          }
           keyExtractor={item => item.id.toString()}
-          ItemSeparatorComponent={<View style={styles.user_listSeprator} />}
+          ItemSeparatorComponent={
+            selectedItem === 1 ? <View style={styles.user_listSeprator} /> : ''
+          }
+          horizontal={selectedItem === 2 ? true : false}
           ListEmptyComponent={
             search.length > 0 && (
               <View style={styles.empty_list}>
@@ -433,7 +458,7 @@ const styles = StyleSheet.create({
   initialHeader: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   noContacts: { fontSize: fontSize(16), fontWeight: 'bold' },
   empty_list: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  contentStyle: { flex: 1 },
+  contentStyle: { flex: 1, paddingHorizontal: wp(3) },
   user_listSeprator: { height: hp(0.5), backgroundColor: colors.cream },
   categories_header: { alignItems: 'center', flex: 1, paddingBottom: hp(8) },
   whatsApp_header: { flex: 1 },
@@ -458,6 +483,11 @@ const styles = StyleSheet.create({
     paddingVertical: hp(15),
     paddingHorizontal: wp(16),
     flexDirection: 'row',
+  },
+  status_list: {
+    flexDirection: 'row',
+    paddingVertical: hp(24),
+    paddingHorizontal: wp(5),
   },
   images_sizing: {
     width: wp(150),

@@ -40,4 +40,5 @@ export const colors = {
   blue: '#3965d5',
   back: '#E9ECEF',
   dd: '#151E26',
+  black_shadow: 'rgba(0,0,0,0.5)',
 };
