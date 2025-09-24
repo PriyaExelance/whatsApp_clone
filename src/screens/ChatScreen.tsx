@@ -1,5 +1,5 @@
 //import liraries
-import React, { Component, useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import {
   View,
   Text,
@@ -19,21 +19,24 @@ import { useNavigation } from '@react-navigation/native';
 import firebase from '@react-native-firebase/app';
 import moment from 'moment';
 import Modal from 'react-native-modal';
+import { texts } from '../helper/strings';
+import { ThemeContext } from '../helper/themeContext';
 
-// create a component
-const ChatScreen = ({ route }) => {
+const ChatScreen = ({ route }: { route: any }) => {
+  const { theme } = useContext(ThemeContext);
   const { id, img, firstname, lastname } = route.params;
   const colorScheme = useColorScheme();
+  const themeStyles = colorScheme === 'light' ? lightTheme : darkTheme;
   const [msg, setMsg] = useState('');
   const [messages, setMessages] = useState([]);
   const [docsVisible, setDocsVisible] = useState(false);
   const [isVisible, setVisible] = useState(false);
   const navigation = useNavigation();
-  const themeStyles = colorScheme === 'light' ? lightTheme : darkTheme;
   const currentUserId = auth().currentUser?.uid || '';
   const [selectedImg, setSelectedImg] = useState([]);
   const [imgVisible, setImgVisible] = useState(false);
   const [image_select, setImageSelect] = useState([]);
+  const [date, setDate] = useState([]);
 
   const imgs = [
     {
@@ -68,6 +71,22 @@ const ChatScreen = ({ route }) => {
     },
   ];
 
+  const attach_icons = [
+    {
+      id: 1,
+      icon: require('../assets/images/contact.png'),
+      name: 'Contact',
+    },
+    { id: 2, icon: require('../assets/images/doc_camera.png'), name: 'Camera' },
+    { id: 3, icon: require('../assets/images/docs.png'), name: 'Document' },
+    { id: 4, icon: require('../assets/images/gallery.png'), name: 'Gallery' },
+    { id: 5, icon: require('../assets/images/location.png'), name: 'Location' },
+    { id: 6, icon: require('../assets/images/poll.png'), name: 'Poll' },
+    { id: 7, icon: require('../assets/images/rupees.png'), name: 'Pay' },
+    { id: 8, icon: require('../assets/images/music.png'), name: 'Audio' },
+    { id: 9, icon: require('../assets/images/gallery.png'), name: 'Ai Images' },
+  ];
+
   const otherUserId = id;
   const chatID =
     currentUserId > otherUserId
@@ -91,7 +110,7 @@ const ChatScreen = ({ route }) => {
     return () => unsubscribe();
   }, [chatID]);
 
-  const sendPhotos = async (url, userId) => {
+  const sendPhotos = async (url: any, userId: string) => {
     try {
       const chatRef = firebase.firestore().collection('chats').doc(chatID);
       const docExists = await chatRef.get();
@@ -123,7 +142,7 @@ const ChatScreen = ({ route }) => {
     }
   };
 
-  const handleSend = async (messageText, userId) => {
+  const handleSend = async (messageText: string, userId: string) => {
     try {
       const chatRef = firebase.firestore().collection('chats').doc(chatID);
       const docRef = await chatRef.get();
@@ -151,21 +170,29 @@ const ChatScreen = ({ route }) => {
     }
   };
 
-  const render_Attachments = ({ item }) => (
-    <View style={styles.render_gallery}>
-      <TouchableOpacity>
-        <Image source={{ uri: item.img_1 }} style={styles.atach_img} />
+  type Attachment = {
+    icon: any;
+    name: string;
+  };
+
+  const render_Attachments = ({ item }: { item: Attachment }) => (
+    <View style={styles.render_attachments}>
+      <TouchableOpacity style={styles.attach_imgrender}>
+        <Image source={item.icon} />
+        <Text>{item.name}</Text>
       </TouchableOpacity>
     </View>
   );
 
-  const render_Images = ({ item }) => (
-    <View style={styles.render_gallery}>
-      <TouchableOpacity>
-        <Image source={{ uri: item.url }} style={styles.preview_imgs} />
-      </TouchableOpacity>
-    </View>
-  );
+  const render_Images = ({ item }: { item: any }) => {
+    return (
+      <View style={styles.render_gallery}>
+        <TouchableOpacity>
+          <Image source={{ uri: item.url }} style={styles.preview_imgs} />
+        </TouchableOpacity>
+      </View>
+    );
+  };
 
   const handleImageSelection = (id, url) => {
     setSelectedImg(prevSelected => {
@@ -177,12 +204,10 @@ const ChatScreen = ({ route }) => {
       }
     });
   };
-
-  const renderItem = ({ item }) => {
+  const renderItem = ({ item }: { item: any }) => {
     const selected = selectedImg.some(img => img.id === item.id);
-
     return (
-      <View style={styles.render_gallery}>
+      <View>
         <TouchableOpacity
           style={[styles.selected_img, { opacity: selected ? 0.5 : 1 }]}
           onPress={() => {
@@ -215,11 +240,11 @@ const ChatScreen = ({ route }) => {
   };
 
   const renderMessage = ({ item, index }) => {
+    console.log('messages', item);
     const msgid = item.sender_id === currentUserId;
     const imgArray = Array.isArray(item.img) ? item.img : [];
     let showHeader = false;
     const current_moment = moment(item.createdAt.toDate()).format('DD-MM-YYYY');
-
     const msgMoment = moment(item.createdAt.toDate());
     const previous_msg = messages[index + 1];
     const prevMoment = previous_msg?.createdAt
@@ -232,7 +257,7 @@ const ChatScreen = ({ route }) => {
       <View>
         {showHeader && (
           <View style={styles.dates_days}>
-            <Text style={[styles.time_text, { color: themeStyles.texts }]}>
+            <Text style={[styles.time_text, { color: theme.colors.texts }]}>
               {formatWhatsAppTime(msgMoment)}
             </Text>
           </View>
@@ -243,25 +268,48 @@ const ChatScreen = ({ route }) => {
             styles.render_senderMsg,
             {
               alignSelf: msgid ? 'flex-end' : 'flex-start',
-              backgroundColor: themeStyles.msges,
+              backgroundColor: msgid && theme.colors.msges,
             },
           ]}
         >
           {item.type === 'text' && (
-            <Text style={{ color: themeStyles.texts }}>{item.text}</Text>
+            <Text style={{ color: msgid && theme.colors.texts }}>
+              {item.text}
+            </Text>
+          )}
+          {item.type === 'repliedStatus' && (
+            <View
+              style={[
+                styles.reply_status,
+                {
+                  justifyContent: msgid ? 'flex-end' : 'flex-start',
+                  backgroundColor: msgid && theme.colors.msges,
+                },
+              ]}
+            >
+              <Image
+                source={{ uri: item.msg_txt.img }}
+                style={styles.reply_statusImg}
+              />
+              <Text style={{ color: msgid && theme.colors.texts }}>
+                {item.msg_txt.text}
+              </Text>
+            </View>
           )}
 
           {item.type === 'image' && (
             <View
               style={[
                 styles.image_chat,
-                { justifyContent: msgid ? 'flex-end' : 'flex-start' },
+                {
+                  justifyContent: msgid ? 'flex-end' : 'flex-start',
+                  backgroundColor: msgid && theme.colors.msges,
+                },
               ]}
             >
               {imgArray.slice(0, 4).map((imgObj, imgIndex) => {
                 let t_width = wp(120);
                 let t_height = wp(120);
-
                 if (imgArray.length === 3) {
                   if (imgIndex === 0 || 1 || 2) {
                     t_width = wp(120);
@@ -277,6 +325,7 @@ const ChatScreen = ({ route }) => {
                 const isLast = imgIndex === 3 && imgArray.length > 4;
                 const handleImage = () => {
                   setImageSelect(item.img);
+                  setDate(item.createdAt);
                   setImgVisible(true);
                 };
 
@@ -339,7 +388,7 @@ const ChatScreen = ({ route }) => {
     <View
       style={[
         styles.container,
-        { backgroundColor: themeStyles.chat_background },
+        { backgroundColor: theme.colors.chat_background },
       ]}
     >
       <View style={styles.header_view}>
@@ -357,7 +406,7 @@ const ChatScreen = ({ route }) => {
             <Text style={styles.text_style}>
               {firstname} {lastname}
             </Text>
-            <Text style={styles.online_txt}>Online</Text>
+            <Text style={styles.online_txt}>{texts.online}</Text>
           </View>
           <Image source={images.video} style={styles.icon_margin} />
           <Image source={images.phone} style={styles.icon_margin} />
@@ -375,7 +424,7 @@ const ChatScreen = ({ route }) => {
         <View
           style={[
             styles.send_msgview,
-            { backgroundColor: themeStyles.msg_text },
+            { backgroundColor: theme.colors.msg_text },
           ]}
         >
           <View style={styles.textinput_msg}>
@@ -386,8 +435,8 @@ const ChatScreen = ({ route }) => {
               onChangeText={txt => {
                 setMsg(txt);
               }}
-              placeholderTextColor="#8798A0"
-              style={[styles.txt_inputStyle, { color: themeStyles.texts }]}
+              placeholderTextColor={colors.placeholder}
+              style={[styles.txt_inputStyle, { color: theme.colors.texts }]}
             />
           </View>
           <View style={styles.icons_view}>
@@ -412,38 +461,48 @@ const ChatScreen = ({ route }) => {
       </View>
       <Modal
         isVisible={isVisible}
-        style={styles.modal_open}
+        style={[styles.modal_open, { margin: 0 }]}
         onBackdropPress={() => setVisible(!isVisible)}
       >
-        <View style={styles.modal_viewStyle}>
+        <View
+          style={{
+            backgroundColor: colors.white,
+            borderTopLeftRadius: wp(16),
+            borderTopRightRadius: wp(16),
+            alignItems: 'center',
+          }}
+        >
           <FlatList
             data={imgs}
             renderItem={renderItem}
             numColumns={2}
             keyExtractor={(item: any) => item.id}
-            contentContainerStyle={styles.list_imgs}
+            contentContainerStyle={[styles.list_imgs]}
           />
-          <TouchableOpacity
-            style={{
-              backgroundColor: colors.dd,
-              padding: 10,
-              justifyContent: 'center',
-              alignItems: 'center',
-            }}
-            onPress={() => sendPhotos(selectedImg, currentUserId)}
-          >
-            <Text style={{ color: colors.white }}>Send</Text>
-          </TouchableOpacity>
+          {selectedImg.length > 0 && (
+            <TouchableOpacity
+              style={{
+                backgroundColor: colors.dd,
+                padding: wp(10),
+                borderRadius: wp(16),
+                marginTop: hp(10),
+                marginBottom: hp(10),
+              }}
+              onPress={() => sendPhotos(selectedImg, currentUserId)}
+            >
+              <Text style={{ color: colors.white }}>{texts.send}</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </Modal>
       <Modal
         isVisible={docsVisible}
-        style={styles.modal_open}
+        style={[styles.modal_open, { margin: 0 }]}
         onBackdropPress={() => setDocsVisible(false)}
       >
         <View style={styles.modal_viewStyle}>
           <FlatList
-            data={imgs}
+            data={attach_icons}
             renderItem={render_Attachments}
             numColumns={3}
             keyExtractor={(item: any) => item.id}
@@ -452,18 +511,22 @@ const ChatScreen = ({ route }) => {
         </View>
       </Modal>
       <Modal
-        style={styles.modal_open}
         isVisible={imgVisible}
         onBackdropPress={() => setImgVisible(!imgVisible)}
       >
-        <View style={styles.modal_image}>
+        <View>
+          <View>
+            <Text style={styles.modal_name}>
+              {firstname} {lastname}
+            </Text>
+          </View>
+
           <FlatList
             data={image_select}
             renderItem={render_Images}
             keyExtractor={(item: any) => item.id}
             contentContainerStyle={styles.list_imgs}
           />
-          HELLO
         </View>
       </Modal>
     </View>
@@ -472,6 +535,9 @@ const ChatScreen = ({ route }) => {
 
 // define your styles
 const styles = StyleSheet.create({
+  reply_statusImg: { width: wp(150), height: wp(150) },
+  reply_status: { flexWrap: 'wrap', maxWidth: wp(250) },
+  attach_imgrender: { justifyContent: 'center', alignItems: 'center' },
   added_imgtext: {
     position: 'absolute',
     top: 0,
@@ -497,22 +563,27 @@ const styles = StyleSheet.create({
   selected_img: {
     width: wp(150),
     height: hp(150),
-    margin: wp(10),
-    justifyContent: 'center',
-    alignItems: 'center',
+    marginVertical: wp(10),
+    marginHorizontal: wp(10),
   },
   list_img: { width: wp(20), height: hp(20) },
   modal_viewStyle: {
-    backgroundColor: 'white',
+    backgroundColor: colors.white,
     borderTopLeftRadius: wp(16),
     borderTopRightRadius: wp(16),
+    padding: wp(5),
+    alignContent: 'center',
   },
   modal_image: {
     justifyContent: 'center',
     alignItems: 'center',
     flex: 1,
   },
-  list_imgs: { backgroundColor: 'white' },
+  modal_preview: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  list_imgs: { backgroundColor: colors.white },
   modal_open: { justifyContent: 'flex-end' },
   send_icon: {
     tintColor: 'white',
@@ -551,7 +622,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: hp(18),
   },
-  message_list: { paddingHorizontal: wp(22), paddingVertical: hp(24) },
+  message_list: { paddingHorizontal: wp(17), paddingVertical: hp(10) },
   setting_img: { tintColor: colors.white },
   icon_margin: { marginRight: wp(26) },
   online_txt: { color: colors.white },
@@ -559,6 +630,13 @@ const styles = StyleSheet.create({
     fontSize: fontSize(18),
     color: colors.white,
     fontWeight: 'bold',
+  },
+  modal_name: {
+    fontSize: fontSize(16),
+    color: colors.white,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: hp(10),
   },
   chat_name: { flex: 1, marginLeft: wp(14) },
   pic_sizing: { width: wp(53), height: hp(53), borderRadius: wp(26.5) },
@@ -580,31 +658,32 @@ const styles = StyleSheet.create({
   gallery_img: {
     width: wp(150),
     height: hp(150),
+    borderRadius: wp(10),
   },
-  atach_img: {
-    width: wp(90),
-    height: wp(90),
-    marginHorizontal: wp(10),
-    marginVertical: hp(10),
-  },
+
   preview_imgs: {
-    width: wp(150),
-    height: wp(150),
-    marginHorizontal: wp(10),
-    marginVertical: hp(10),
+    width: wp(375),
+    height: hp(500),
   },
   render_gallery: {
-    borderRadius: wp(8),
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  render_attachments: {
+    width: wp(70),
+    height: wp(70),
+    borderRadius: wp(35),
+    justifyContent: 'center',
+    alignItems: 'center',
+    flex: 1,
   },
 
   render_senderMsg: {
     marginTop: hp(5),
     borderRadius: wp(10),
     backgroundColor: colors.yellow,
-    paddingHorizontal: wp(11),
-    paddingVertical: hp(11),
+    paddingHorizontal: wp(10),
+    paddingVertical: hp(5),
   },
 
   container: {

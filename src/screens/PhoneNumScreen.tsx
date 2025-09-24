@@ -1,5 +1,5 @@
 //import liraries
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import {
   View,
   Text,
@@ -18,11 +18,11 @@ import { useNavigation } from '@react-navigation/native';
 import { lightTheme, darkTheme, colors } from '../helper/colors';
 import Countrypicker from 'react-native-country-picker-modal';
 import auth from '@react-native-firebase/auth';
+import { ThemeContext } from '../helper/themeContext';
 
 // create a component
 const PhoneNumScreen = () => {
-  const colorScheme = useColorScheme();
-  const themeStyles = colorScheme === 'light' ? lightTheme : darkTheme;
+  const { theme } = useContext(ThemeContext);
   const [countryName, setCountryName] = useState('India');
   const [countryCode, setCountryCode] = useState('+91');
   const [phone, setPhone] = useState('');
@@ -51,20 +51,22 @@ const PhoneNumScreen = () => {
   };
   return (
     <View
-      style={[styles.container, { backgroundColor: themeStyles.background }]}
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
     >
       <View style={styles.top_view}>
         <View style={styles.header_view}>
-          <Text style={[styles.header_txt, { color: themeStyles.texts }]}>
+          <Text style={[styles.header_txt, { color: theme.colors.texts }]}>
             {texts.enter_ph}
           </Text>
           <Image
             source={images.settings}
-            style={[styles.setting_img, { tintColor: themeStyles.texts }]}
+            style={[styles.setting_img, { tintColor: theme.colors.texts }]}
           />
         </View>
         <View style={styles.verify_phone}>
-          <Text style={[styles.verify_phoneText, { color: themeStyles.texts }]}>
+          <Text
+            style={[styles.verify_phoneText, { color: theme.colors.texts }]}
+          >
             {parts[0]}
             <Text style={styles.parted_textcolor}>{blue_text}</Text>
             {parts[1]}
@@ -77,16 +79,16 @@ const PhoneNumScreen = () => {
         >
           <View style={styles.country_view}>
             <View />
-            <Text style={{ color: themeStyles.texts }}>{countryName}</Text>
+            <Text style={{ color: theme.colors.texts }}>{countryName}</Text>
             <Image
               source={images.dd}
-              style={{ tintColor: themeStyles.texts }}
+              style={{ tintColor: theme.colors.texts }}
             />
           </View>
         </TouchableOpacity>
         <View style={styles.number_view}>
           <View style={styles.country_codeView}>
-            <Text style={{ color: themeStyles.texts }}>{countryCode}</Text>
+            <Text style={{ color: theme.colors.texts }}>{countryCode}</Text>
           </View>
           <View style={styles.phone_view}>
             <TextInput
@@ -94,7 +96,7 @@ const PhoneNumScreen = () => {
               value={phone}
               onChangeText={txt => setPhone(txt)}
               keyboardType="number-pad"
-              style={{ color: themeStyles.texts }}
+              style={{ color: theme.colors.texts }}
             />
           </View>
         </View>
@@ -108,7 +110,7 @@ const PhoneNumScreen = () => {
           style={styles.next_btn}
           onPress={() => handlePhoneAuth()}
         >
-          <Text style={[styles.next_text, { color: themeStyles.btn_text }]}>
+          <Text style={[styles.next_text, { color: theme.colors.btn_text }]}>
             {texts.next}
           </Text>
         </TouchableOpacity>
@@ -210,5 +212,4 @@ const styles = StyleSheet.create({
   },
 });
 
-//make this component available to the app
 export default PhoneNumScreen;

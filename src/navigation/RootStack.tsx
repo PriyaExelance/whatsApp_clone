@@ -7,6 +7,7 @@ import PhoneNumScreen from '../screens/PhoneNumScreen';
 import OtpScreen from '../screens/OtpScreen';
 import InitialchatScreen from '../screens/InitialchatScreen';
 import ChatScreen from '../screens/ChatScreen';
+import SettingsScreen from '../screens/SettingsScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -23,6 +24,7 @@ export function RootStack() {
         <Stack.Screen name="OtpScreen" component={OtpScreen} />
         <Stack.Screen name="InitialchatScreen" component={InitialchatScreen} />
         <Stack.Screen name="ChatScreen" component={ChatScreen} />
+        <Stack.Screen name="SettingsScreen" component={SettingsScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
