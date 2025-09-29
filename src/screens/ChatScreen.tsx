@@ -240,7 +240,6 @@ const ChatScreen = ({ route }: { route: any }) => {
   };
 
   const renderMessage = ({ item, index }) => {
-    console.log('messages', item);
     const msgid = item.sender_id === currentUserId;
     const imgArray = Array.isArray(item.img) ? item.img : [];
     let showHeader = false;

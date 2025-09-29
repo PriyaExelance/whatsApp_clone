@@ -34,4 +34,5 @@ export const images = {
   back_btn: require('./images/back_button.png'),
   sign_out: require('./images/logout.png'),
   background: require('./images/background.png'),
+  eye_lash: require('./images/eyelashes.png'),
 };

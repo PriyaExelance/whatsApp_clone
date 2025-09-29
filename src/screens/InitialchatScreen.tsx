@@ -10,7 +10,6 @@ import {
   ActivityIndicator,
   Animated,
   StatusBar,
-  Pressable,
   TouchableWithoutFeedback,
   Keyboard,
 } from 'react-native';
@@ -27,7 +26,6 @@ import firebase from '@react-native-firebase/app';
 import firestore from '@react-native-firebase/firestore';
 import auth from '@react-native-firebase/auth';
 import { ThemeContext } from '../helper/themeContext';
-import { duration } from 'moment';
 
 const InitialchatScreen = () => {
   const navigation = useNavigation();
@@ -54,7 +52,6 @@ const InitialchatScreen = () => {
   const [reply, setReply] = useState('');
   const [statusReply, setStatusReply] = useState('');
   const user = auth().currentUser?.uid;
-  console.log('current user', user);
   const [preview, setPreview] = useState(false);
   const [user_preview, setUserPreview] = useState(false);
   const [currentUser_preview, setCurrentUser_preview] = useState(false);
@@ -69,8 +66,6 @@ const InitialchatScreen = () => {
   const [focused, setFocused] = useState(false);
   const [progressPaused, setProgressPaused] = useState(false);
   const [progressValue, setProgressValue] = useState(0);
-
-  console.log('status format', allStatus);
 
   const animated_progress = (anim, duration, fromValue = 0) => {
     anim.stopAnimation(value => {
@@ -102,6 +97,7 @@ const InitialchatScreen = () => {
       getStatus();
     }
     getAllstatus();
+    listenAllStatus();
   }, []);
 
   const startUserPreviewTimer = () => {
@@ -115,6 +111,7 @@ const InitialchatScreen = () => {
       if (current_index < selectedUserStatuses.length - 1) {
         setCurrentIndex(prev => prev + 1);
       } else {
+        setStatusReply('');
         setUserPreview(false);
       }
     }, 5000);
@@ -163,7 +160,12 @@ const InitialchatScreen = () => {
     return () => {
       if (timer.current) clearTimeout(timer.current);
     };
-  }, [user_preview, current_index, selectedUserStatuses, progressPaused]);
+  }, [
+    currentUser_preview,
+    current_index,
+    selectedUserStatuses,
+    progressPaused,
+  ]);
 
   const stopCurrent_timer = () => {
     setProgressPaused(true);
@@ -192,14 +194,14 @@ const InitialchatScreen = () => {
               imgStatus => imgStatus.image?.map(img => img.url) || [],
             ),
           ) || [];
-
-        if (statusIndex.current < userStatuses.length - 1) {
-          statusIndex.current += 1;
-          setCurrentIndex(statusIndex.current);
+        if (current_index < userStatuses.length - 1) {
+          setCurrentIndex(prev => prev + 1);
+          setReply('');
         } else {
           if (userIndex.current < allStatus.length - 1) {
             userIndex.current += 1;
             statusIndex.current = 0;
+            setReply('');
             const nextUserStatuses =
               allStatus[userIndex.current]?.statuses?.flatMap(statusObj =>
                 statusObj.image_status?.flatMap(
@@ -227,6 +229,7 @@ const InitialchatScreen = () => {
     if (!progressPaused) {
       startTimer();
     }
+
     return () => {
       if (timer.current) clearInterval(timer.current);
     };
@@ -261,45 +264,49 @@ const InitialchatScreen = () => {
   const toggleModal = () => {
     setSettingModal(!setting_modal);
   };
-  const sendPhotos = async (user, img_url) => {
+  const sendPhotos = async (userId, img_url) => {
     try {
-      const statusRef = firebase
+      const statusCollection = firebase
         .firestore()
         .collection('users')
-        .doc(user)
-        .collection('status')
-        .doc();
+        .doc(userId)
+        .collection('status');
 
-      const docSnap = await statusRef.get();
+      const latestStatusSnap = await statusCollection
+        .orderBy('createdAt', 'desc')
+        .limit(1)
+        .get();
 
-      if (docSnap.exists) {
-        await statusRef.update({
-          image_status: [
-            {
-              createdAt: new Date(),
-              sender_id: user,
-              image: img_url,
-            },
-          ],
+      if (!latestStatusSnap.empty) {
+        const latestDoc = latestStatusSnap.docs[0].ref;
+
+        await latestDoc.update({
+          image_status: firebase.firestore.FieldValue.arrayUnion({
+            createdAt: new Date(),
+            sender_id: userId,
+            image: img_url,
+          }),
           createdAt: new Date(),
         });
       } else {
-        await statusRef.set({
+        const newStatusRef = statusCollection.doc();
+        await newStatusRef.set({
           createdAt: new Date(),
           image_status: [
             {
               createdAt: new Date(),
-              sender_id: user,
+              sender_id: userId,
               image: img_url,
             },
           ],
         });
       }
+
       setSelectedImg([]);
-      setVisible(!isVisible);
+      setVisible(false);
       setUserModal(false);
     } catch (error) {
-      console.log(error);
+      console.log('Error sending photo status:', error);
     }
   };
 
@@ -314,7 +321,6 @@ const InitialchatScreen = () => {
             createdAt: new Date(),
             sender_id: userId,
             type: 'repliedStatus',
-            view_status: [stat],
           }),
         });
       } else {
@@ -324,7 +330,6 @@ const InitialchatScreen = () => {
             createdAt: new Date(),
             sender_id: userId,
             type: 'repliedStatus',
-            view_status: [],
           }),
         });
       }
@@ -356,9 +361,11 @@ const InitialchatScreen = () => {
 
   const getUsersWithStatus = async () => {
     try {
+      const currentUserId = firebase.auth().currentUser.uid;
       const usersSnap = await firebase.firestore().collection('users').get();
       const usersWithStatus = [];
       const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
       for (const userDoc of usersSnap.docs) {
         const userId = userDoc.id;
         const userData = userDoc.data();
@@ -377,13 +384,18 @@ const InitialchatScreen = () => {
           const data = doc.data();
 
           if (Array.isArray(data.image_status)) {
-            const filteredImages = data.image_status.filter(imgObj => {
-              if (!imgObj.createdAt) return false;
-              const created = imgObj.createdAt.toDate
-                ? imgObj.createdAt.toDate()
-                : new Date(imgObj.createdAt);
-              return created >= cutoff;
-            });
+            const filteredImages = data.image_status
+              .filter(imgObj => {
+                if (!imgObj.createdAt) return false;
+                const created = imgObj.createdAt.toDate
+                  ? imgObj.createdAt.toDate()
+                  : new Date(imgObj.createdAt);
+                return created >= cutoff;
+              })
+              .map(imgObj => ({
+                ...imgObj,
+                viewed: imgObj.viewedBy?.includes(currentUserId) || false,
+              }));
 
             if (filteredImages.length > 0) {
               validStatuses.push({
@@ -394,6 +406,7 @@ const InitialchatScreen = () => {
             }
           }
         });
+
         if (validStatuses.length > 0) {
           usersWithStatus.push({
             userId,
@@ -403,12 +416,133 @@ const InitialchatScreen = () => {
           });
         }
       }
+
       setAllStatus(usersWithStatus);
       return usersWithStatus;
     } catch (error) {
       console.error('Error fetching users with status:', error);
     }
   };
+
+  const listenAllStatus = () => {
+    const unsubscribe = firestore()
+      .collection('users')
+      .onSnapshot(async usersSnap => {
+        try {
+          const currentUserId = firebase.auth().currentUser.uid;
+          const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+          const usersWithStatus: any[] = [];
+
+          for (const userDoc of usersSnap.docs) {
+            const userId = userDoc.id;
+            const userData = userDoc.data();
+
+            const statusSnap = await firestore()
+              .collection('users')
+              .doc(userId)
+              .collection('status')
+              .orderBy('createdAt', 'asc')
+              .get();
+
+            let validStatuses: any[] = [];
+            statusSnap.forEach(doc => {
+              const data = doc.data();
+
+              if (Array.isArray(data.image_status)) {
+                const filteredImages = data.image_status
+                  .filter(imgObj => {
+                    if (!imgObj.createdAt) return false;
+                    const created = imgObj.createdAt.toDate
+                      ? imgObj.createdAt.toDate()
+                      : new Date(imgObj.createdAt);
+                    return created >= cutoff;
+                  })
+                  .map(imgObj => ({
+                    ...imgObj,
+                    viewed: imgObj.viewedBy?.includes(currentUserId) || false,
+                  }));
+
+                if (filteredImages.length > 0) {
+                  validStatuses.push({
+                    id: doc.id,
+                    ...data,
+                    image_status: filteredImages,
+                  });
+                }
+              }
+            });
+
+            if (validStatuses.length > 0) {
+              usersWithStatus.push({
+                userId,
+                userName: userData?.firstname,
+                userProfile: userData?.img,
+                statuses: validStatuses,
+              });
+            }
+          }
+
+          setAllStatus(usersWithStatus.filter(u => u.userId !== user));
+        } catch (error) {
+          console.error('Error listening to users with status:', error);
+        }
+      });
+
+    return unsubscribe;
+  };
+
+  const markStatusAsViewed = async (
+    ownerId: string,
+    statusDocId: string,
+    imageIndex: number,
+  ) => {
+    try {
+      const currentUserId = auth().currentUser?.uid;
+      if (!currentUserId) return;
+
+      const statusRef = firestore()
+        .collection('users')
+        .doc(ownerId)
+        .collection('status')
+        .doc(statusDocId);
+
+      const statusDoc = await statusRef.get();
+      if (!statusDoc.exists) return;
+
+      const statusData = statusDoc.data();
+      const updatedImages = statusData.image_status.map(
+        (img: any, idx: number) => {
+          const viewedBy = img.viewedBy || [];
+          if (idx === imageIndex && !viewedBy.includes(currentUserId)) {
+            return { ...img, viewedBy: [...viewedBy, currentUserId] };
+          }
+          return img;
+        },
+      );
+
+      await statusRef.update({ image_status: updatedImages });
+      console.log('update', updatedImages);
+      console.log(imageIndex);
+    } catch (err) {
+      console.error('Error marking status viewed:', err);
+    }
+  };
+  useEffect(() => {
+    if (!preview || selectedUserStatuses.length === 0) return;
+
+    const currentUser = allStatus[userIndex.current];
+    const currentStatus = currentUser?.statuses?.[0];
+    const currentImage = currentStatus?.image_status?.[current_index];
+
+    if (
+      currentUser &&
+      currentStatus &&
+      currentImage &&
+      !currentImage.viewedBy?.includes(user)
+    ) {
+      markStatusAsViewed(currentUser.userId, currentStatus.id, current_index);
+    }
+  }, [current_index, preview]);
 
   const fetchCurrentUserStatus = async () => {
     try {
@@ -623,19 +757,22 @@ const InitialchatScreen = () => {
         )
         .reduce((a, b) => a + b, 0) ?? 0;
 
-    const img_urls =
-      item?.statuses?.flatMap(statusObj =>
-        statusObj.image_status?.flatMap(
-          imgStatus => imgStatus.image?.map(img => img.url) || [],
-        ),
-      ) || [];
+    const img_objects = item.statuses.flatMap(statusObj =>
+      statusObj.image_status.map((img, idx) => ({
+        url: Array.isArray(img.image) ? img.image[0].url : img.image?.url,
+        user_name: item.userName,
+        profile_pic: item.userProfile,
+        sender_id: item.userId,
+        statusDocId: statusObj.id,
+        imageIndex: idx,
+        viewedBy: img.viewedBy || [],
+      })),
+    );
 
-    const img_objects = img_urls.map(url => ({
-      url,
-      user_name: item.userName,
-      profile_pic: item.userProfile,
-      sender_id: item.userId,
-    }));
+    const currentUserId = auth().currentUser?.uid;
+    const isAllViewed = item.statuses.every(st =>
+      st.image_status.every(img => img.viewedBy?.includes(currentUserId)),
+    );
 
     {
       return (
@@ -644,6 +781,11 @@ const InitialchatScreen = () => {
           onPress={() => {
             userIndex.current = index;
             statusIndex.current = 0;
+            if (progressPaused) {
+              setProgressPaused(false);
+              setProgressValue(0);
+              startTimer();
+            }
             setCurrentIndex(0);
             setSelectedUserStatuses(img_objects);
             setPreview(true);
@@ -656,7 +798,7 @@ const InitialchatScreen = () => {
                 styles.userProfile_status,
                 {
                   borderWidth: item.statuses?.length > 0 ? wp(3) : wp(0),
-                  borderColor: item.statuses?.length > 0 ? colors.green : '',
+                  borderColor: isAllViewed ? 'grey' : colors.green,
                 },
               ]}
             />
@@ -679,24 +821,32 @@ const InitialchatScreen = () => {
         )
         .reduce((a, b) => a + b, 0) ?? 0;
 
-    const img_urls =
-      item?.statuses?.flatMap(statusObj =>
-        statusObj.image_status?.flatMap(
-          imgStatus => imgStatus.image?.map(img => img.url) || [],
-        ),
-      ) || [];
+    const img_objects = item.statuses.flatMap(statusObj =>
+      statusObj.image_status.map((img, idx) => ({
+        url: Array.isArray(img.image) ? img.image[0].url : img.image?.url,
+        user_name: item.userName,
+        profile_pic: item.userProfile,
+        sender_id: item.userId,
+        statusDocId: statusObj.id,
+        imageIndex: idx,
+        viewedBy: img.viewedBy || [],
+      })),
+    );
 
-    const img_objects = img_urls.map(url => ({
-      url,
-      user_name: item.userName,
-      profile_pic: item.userProfile,
-      sender_id: item.userId,
-    }));
+    const currentUserId = auth().currentUser?.uid;
+    const isAllViewed = item.statuses.every(st =>
+      st.image_status.every(img => img.viewedBy?.includes(currentUserId)),
+    );
 
     {
       return (
         <TouchableOpacity
           onPress={() => {
+            if (progressPaused) {
+              setProgressPaused(false);
+              setProgressValue(0);
+              startUserPreviewTimer();
+            }
             setSelectedUserStatuses(img_objects),
               setCurrentIndex(0),
               setUserPreview(!user_preview);
@@ -709,8 +859,8 @@ const InitialchatScreen = () => {
                 style={[
                   styles.userProfile_status,
                   {
-                    borderWidth: totalImages > 0 ? wp(3) : wp(0),
-                    borderColor: totalImages > 0 ? colors.green : '',
+                    borderWidth: item.statuses?.length > 0 ? wp(3) : wp(0),
+                    borderColor: isAllViewed ? 'grey' : colors.green,
                   },
                 ]}
               />
@@ -1003,10 +1153,14 @@ const InitialchatScreen = () => {
         onBackdropPress={() => setPreview(!preview)}
       >
         <StatusBar barStyle="light-content" />
+
         <TouchableWithoutFeedback
           onPress={() => {
             replyStatus.current?.blur();
             Keyboard.dismiss();
+            if (progressPaused) {
+              resumeProgress();
+            }
             if (progressPaused && reply.trim() === '') {
               resumeProgress();
             }
@@ -1041,7 +1195,6 @@ const InitialchatScreen = () => {
                         statusIndex.current = new_index;
                         return new_index;
                       });
-                      setProgressValue(0);
                     } else {
                       if (userIndex.current > 0) {
                         userIndex.current -= 1;
@@ -1075,8 +1228,6 @@ const InitialchatScreen = () => {
                   style={styles.back_nextbtn}
                   disabled={isFocused}
                   activeOpacity={1}
-                  onLongPress={stopTimer}
-                  onPressOut={resumeProgress}
                   onPress={() => {
                     stopProgress();
                     progressAnim.setValue(0);
@@ -1087,7 +1238,6 @@ const InitialchatScreen = () => {
                         statusIndex.current = new_index;
                         return new_index;
                       });
-                      setProgressValue(0);
                     } else {
                       if (userIndex.current < allStatus.length - 1) {
                         userIndex.current += 1;
@@ -1169,9 +1319,10 @@ const InitialchatScreen = () => {
               >
                 <TouchableOpacity
                   onPress={() => {
-                    clearInterval(timer.current),
-                      setReply(''),
-                      setPreview(!preview);
+                    replyStatus.current?.blur();
+                    Keyboard.dismiss();
+                    clearInterval(timer.current);
+                    setReply(''), setPreview(!preview);
                   }}
                 >
                   <Image source={images.back_btn} style={styles.backbtn} />
@@ -1228,19 +1379,21 @@ const InitialchatScreen = () => {
                     paddingHorizontal: wp(10),
                   }}
                 />
-                <TouchableOpacity
-                  style={{
-                    width: wp(36),
-                    height: wp(36),
-                    borderRadius: wp(18),
-                    backgroundColor: colors.green,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                  onPress={handleSendMessage}
-                >
-                  <Image source={images.send} style={styles.send_icon} />
-                </TouchableOpacity>
+                {reply.length && (
+                  <TouchableOpacity
+                    style={{
+                      width: wp(36),
+                      height: wp(36),
+                      borderRadius: wp(18),
+                      backgroundColor: colors.green,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                    onPress={handleSendMessage}
+                  >
+                    <Image source={images.send} style={styles.send_icon} />
+                  </TouchableOpacity>
+                )}
               </View>
             )}
           </View>
@@ -1256,6 +1409,9 @@ const InitialchatScreen = () => {
           onPress={() => {
             status_reply.current?.blur();
             Keyboard.dismiss();
+            if (progressPaused) {
+              resume_Progress();
+            }
             if (progressPaused && statusReply.trim() === '') {
               resume_Progress();
             }
@@ -1346,6 +1502,7 @@ const InitialchatScreen = () => {
                 <TouchableOpacity
                   onPress={() => {
                     clearTimeout(timer.current),
+                      setProgressValue(0),
                       setStatusReply(''),
                       setUserPreview(false);
                   }}
@@ -1546,6 +1703,27 @@ const InitialchatScreen = () => {
                 </Text>
               </View>
             )}
+
+            {selectedUserStatuses.length > 0 && (
+              <TouchableOpacity
+                style={{
+                  paddingHorizontal: wp(10),
+                  position: 'absolute',
+                  bottom: 70,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                }}
+              >
+                <Image
+                  source={images.eye_lash}
+                  tintColor="white"
+                  style={{ width: wp(30), height: hp(30) }}
+                />
+
+                {/* <Text style={{ color: colors.white, marginLeft: wp(2) }}>
+                </Text> */}
+              </TouchableOpacity>
+            )}
           </View>
         </TouchableWithoutFeedback>
       </Modal>
@@ -1601,7 +1779,7 @@ const InitialchatScreen = () => {
           </TouchableOpacity>
           {currentUserStatus.length > 0 && (
             <TouchableOpacity
-              style={styles.add_status_btn}
+              style={[styles.add_status_btn, { marginBottom: wp(10) }]}
               onPress={() => {
                 if (currentUserStatus.length > 0) {
                   const img_objects = currentUserStatus.map(url => ({
@@ -1610,7 +1788,7 @@ const InitialchatScreen = () => {
                     profile_pic: find_user.img,
                     sender_id: find_user.id,
                   }));
-                  console.log('current user', img_objects);
+
                   setSelectedUserStatuses(img_objects);
                   setCurrentIndex(0);
                   setCurrentUser_preview(true);
@@ -1780,6 +1958,8 @@ const styles = StyleSheet.create({
   user_modal_view: {
     backgroundColor: 'white',
     paddingHorizontal: wp(20),
+    borderTopRightRadius: wp(16),
+    borderTopLeftRadius: wp(16),
   },
   user_header: { fontSize: fontSize(24) },
   user_modal: {
