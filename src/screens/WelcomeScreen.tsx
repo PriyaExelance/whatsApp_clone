@@ -15,7 +15,7 @@ import { useNavigation } from '@react-navigation/native';
 import { lightTheme, darkTheme, colors } from '../helper/colors';
 import { getAuth } from '@react-native-firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ThemeContext } from '../helper/themeContext';
+import { ThemeContext } from '../hooks/themeContext';
 
 // create a component
 const WelcomeScreen = () => {

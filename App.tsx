@@ -5,7 +5,7 @@ import OtpScreen from './src/screens/OtpScreen';
 import RNBootSplash from 'react-native-bootsplash';
 import { useEffect } from 'react';
 import { lightTheme, darkTheme } from './src/helper/colors';
-import { ThemeProvider } from './src/helper/themeContext';
+import { ThemeProvider } from './src/hooks/themeContext';
 
 function App() {
   // const colorScheme = useColorScheme();

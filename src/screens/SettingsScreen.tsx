@@ -8,7 +8,7 @@ import { colors } from '../helper/colors';
 import { useContext, useState, useEffect } from 'react';
 import auth, { getAuth, signOut } from '@react-native-firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ThemeContext } from '../helper/themeContext';
+import { ThemeContext } from '../hooks/themeContext';
 // create a component
 const SettingsScreen = () => {
   const { theme, toggleTheme } = useContext(ThemeContext);

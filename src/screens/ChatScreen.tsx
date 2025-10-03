@@ -1,4 +1,3 @@
-//import liraries
 import React, { useState, useEffect, useContext } from 'react';
 import {
   View,
@@ -15,13 +14,16 @@ import { lightTheme, darkTheme, colors } from '../helper/colors';
 import { hp, wp, fontSize } from '../helper/responsive';
 import { images } from '../assets/images';
 import auth from '@react-native-firebase/auth';
-import { useNavigation } from '@react-navigation/native';
+import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import firebase from '@react-native-firebase/app';
+import firestore from '@react-native-firebase/firestore';
 import moment from 'moment';
 import Modal from 'react-native-modal';
 import { texts } from '../helper/strings';
-import { ThemeContext } from '../helper/themeContext';
-
+import { ThemeContext } from '../hooks/themeContext';
+import { sendPushNotification } from '../helper/sendPushNotification';
+import messaging from '@react-native-firebase/messaging';
+import { Linking } from 'react-native';
 const ChatScreen = ({ route }: { route: any }) => {
   const { theme } = useContext(ThemeContext);
   const { id, img, firstname, lastname } = route.params;
@@ -71,6 +73,33 @@ const ChatScreen = ({ route }: { route: any }) => {
     },
   ];
 
+  // const linking = {
+  //   prefixes: ['myapp://'],
+  //   config: {
+  //     screens: {
+  //       ChatScreen: 'chat/:userId',
+  //     },
+  //   },
+  // };
+
+  // messaging().onNotificationOpenedApp(remoteMessage => {
+  //   if (remoteMessage?.data?.link) {
+  //     Linking.openURL(remoteMessage.data.link);
+  //   }
+  // });
+
+  // // When app is opened from a quit state
+  // messaging()
+  //   .getInitialNotification()
+  //   .then(remoteMessage => {
+  //     if (remoteMessage?.data?.link) {
+  //       Linking.openURL(remoteMessage.data.link);
+  //     }
+  //   });
+  // <NavigationContainer linking={linking}>
+  //   {/* your navigators */}
+  // </NavigationContainer>
+
   const attach_icons = [
     {
       id: 1,
@@ -88,6 +117,7 @@ const ChatScreen = ({ route }: { route: any }) => {
   ];
 
   const otherUserId = id;
+  console.log('reciever id ', otherUserId);
   const chatID =
     currentUserId > otherUserId
       ? `${otherUserId}-${currentUserId}`
@@ -110,39 +140,70 @@ const ChatScreen = ({ route }: { route: any }) => {
     return () => unsubscribe();
   }, [chatID]);
 
-  const sendPhotos = async (url: any, userId: string) => {
+  const getReceiverFcmToken = async (userId: string) => {
+    try {
+      const userDoc = await firestore().collection('users').doc(userId).get();
+      return userDoc.data()?.fcmToken || null;
+    } catch (error) {
+      console.error('Error fetching receiver FCM token:', error);
+      return null;
+    }
+  };
+
+  const sendPhotos = async (selectedImages: any[], userId: string) => {
     try {
       const chatRef = firebase.firestore().collection('chats').doc(chatID);
       const docExists = await chatRef.get();
+      const imgUrls = selectedImages.map(img => ({ url: img.url }));
+
+      const messageData = {
+        img: imgUrls,
+        createdAt: new Date(),
+        sender_id: userId,
+        type: 'image',
+      };
+
       if (docExists.exists) {
         await chatRef.update({
-          messages: firebase.firestore.FieldValue.arrayUnion({
-            img: url,
-            createdAt: new Date(),
-            sender_id: userId,
-            type: 'image',
-          }),
+          messages: firebase.firestore.FieldValue.arrayUnion(messageData),
         });
-        setSelectedImg([]);
-        setVisible(!isVisible);
       } else {
         await chatRef.set({
-          messages: firebase.firestore.FieldValue.arrayUnion({
-            img: url,
-            createdAt: new Date(),
-            sender_id: userId,
-            type: 'image',
-          }),
+          messages: firebase.firestore.FieldValue.arrayUnion(messageData),
         });
-        setSelectedImg([]);
-        setVisible(!isVisible);
       }
+
+      const receiverToken = await getReceiverFcmToken(otherUserId);
+      console.log('reciever token', receiverToken);
+      if (!receiverToken) {
+        console.warn('No FCM token found for receiver');
+      } else {
+        const senderName = `${route.params.firstname} ${route.params.lastname}`;
+        const bodyText =
+          selectedImages.length > 1
+            ? `Sent you ${selectedImages.length} images`
+            : 'Sent you an image';
+        const screenName = 'ChatScreen';
+
+        // Send notification with receiver's token
+        await sendPushNotification(
+          receiverToken,
+          senderName,
+          bodyText,
+          screenName,
+        );
+      }
+
+      setSelectedImg([]);
+      setVisible(false);
     } catch (error) {
-      console.log(error);
+      console.error('Error sending photos:', error);
     }
   };
 
   const handleSend = async (messageText: string, userId: string) => {
+    if (!messageText.trim()) return;
+
     try {
       const chatRef = firebase.firestore().collection('chats').doc(chatID);
       const docRef = await chatRef.get();
@@ -165,8 +226,21 @@ const ChatScreen = ({ route }: { route: any }) => {
           }),
         });
       }
+
+      const receiverToken = await getReceiverFcmToken(otherUserId);
+      if (!receiverToken) {
+        console.warn('No FCM token found for receiver');
+      } else {
+        const senderName = `${firstname} ${lastname}`;
+        await sendPushNotification(
+          receiverToken,
+          senderName,
+          messageText,
+          'ChatScreen',
+        );
+      }
     } catch (error) {
-      console.log(error);
+      console.error('Error sending message:', error);
     }
   };
 

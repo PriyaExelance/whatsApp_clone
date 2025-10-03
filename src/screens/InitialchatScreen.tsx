@@ -25,7 +25,7 @@ import { useEffect, useState, useRef, useContext } from 'react';
 import firebase from '@react-native-firebase/app';
 import firestore from '@react-native-firebase/firestore';
 import auth from '@react-native-firebase/auth';
-import { ThemeContext } from '../helper/themeContext';
+import { ThemeContext } from '../hooks/themeContext';
 
 const InitialchatScreen = () => {
   const navigation = useNavigation();
@@ -730,6 +730,7 @@ const InitialchatScreen = () => {
               img: item.img,
               firstname: item.firstname,
               lastname: item.lastname,
+              phone_no: item.phone,
             })
           }
         >
@@ -1876,7 +1877,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   recentUpdate_text: { fontSize: fontSize(15), marginBottom: hp(10) },
-  recent_updateHeader: { marginTop: hp(36) },
+  recent_updateHeader: { marginTop: hp(10) },
   add_status_icon: { width: wp(10), height: wp(10) },
   status_rendering: { paddingHorizontal: wp(10), paddingVertical: hp(20) },
   status_view_h: {
@@ -2027,7 +2028,6 @@ const styles = StyleSheet.create({
   modal_open: { justifyContent: 'flex-end' },
   status_list: {
     flexDirection: 'row',
-    alignItems: 'center',
   },
   selected_img: {
     width: wp(150),

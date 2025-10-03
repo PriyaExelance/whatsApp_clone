@@ -18,7 +18,7 @@ import { useNavigation } from '@react-navigation/native';
 import { lightTheme, darkTheme, colors } from '../helper/colors';
 import Countrypicker from 'react-native-country-picker-modal';
 import auth from '@react-native-firebase/auth';
-import { ThemeContext } from '../helper/themeContext';
+import { ThemeContext } from '../hooks/themeContext';
 
 // create a component
 const PhoneNumScreen = () => {

@@ -1,7 +1,7 @@
 // ThemeContext.js
 import React, { createContext, useState, useEffect } from 'react';
 import { Appearance } from 'react-native';
-import { lightTheme, darkTheme } from './colors';
+import { lightTheme, darkTheme } from '../helper/colors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const ThemeContext = createContext();

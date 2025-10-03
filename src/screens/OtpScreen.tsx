@@ -16,7 +16,10 @@ import { useNavigation } from '@react-navigation/native';
 import { OtpInput } from 'react-native-otp-entry';
 import { lightTheme, darkTheme, colors } from '../helper/colors';
 import { useRoute } from '@react-navigation/native';
-import { ThemeContext } from '../helper/themeContext';
+import { ThemeContext } from '../hooks/themeContext';
+import firestore from '@react-native-firebase/firestore';
+import auth from '@react-native-firebase/auth'; // Add this import
+import messaging from '@react-native-firebase/messaging'; // Add this import
 
 const OtpScreen = () => {
   const { theme } = useContext(ThemeContext);
@@ -42,13 +45,23 @@ const OtpScreen = () => {
     } else {
       setCanResend(true);
     }
-
     return () => clearInterval(timer);
   }, [timeLeft]);
 
   const confirmCode = async () => {
     try {
       await confirmation.confirm(code);
+
+      // Manually fetch and save token to Firestore
+      const token = await messaging().getToken();
+      const userId = auth().currentUser?.uid;
+      if (userId && token) {
+        await firestore()
+          .collection('users')
+          .doc(userId)
+          .set({ fcmToken: token }, { merge: true });
+      }
+
       navigation.navigate('InitialchatScreen');
     } catch (error) {
       console.error('Error verifying OTP:', error);
