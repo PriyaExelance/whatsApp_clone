@@ -37,15 +37,15 @@ const OtpScreen = () => {
   const main = `+91 ${firstTwoDigits}******${lastTwoDigits}`;
 
   useEffect(() => {
-    let timers;
+    let timerId;
     if (timeLeft > 0) {
-      timers = setInterval(() => {
+      timerId = setInterval(() => {
         setTimeLeft(prevTime => prevTime - 1);
       }, 1000);
     } else {
       setCanResend(true);
     }
-    return () => clearInterval(timer);
+    return () => clearInterval(timerId); // Fixed typo in timer variable
   }, [timeLeft]);
 
   const confirmCode = async () => {
@@ -56,10 +56,31 @@ const OtpScreen = () => {
       const token = await messaging().getToken();
       const userId = auth().currentUser?.uid;
       if (userId && token) {
-        await firestore()
-          .collection('users')
-          .doc(userId)
-          .set({ fcmToken: token }, { merge: true });
+        const userRef = firestore().collection('users').doc(userId);
+        const userDoc = await userRef.get();
+
+        if (userDoc.exists) {
+          const existingTokens = userDoc.data()?.fcmTokens || [];
+          if (!existingTokens.includes(token)) {
+            await userRef.update({
+              fcmTokens: [...existingTokens, token],
+            });
+          }
+        } else {
+          await userRef.set({
+            uid: userId,
+            phone: phone,
+            fcmTokens: [token],
+          });
+        }
+        console.log(
+          'FCM token saved successfully:',
+          token,
+          'for user:',
+          userId,
+        );
+      } else {
+        console.log('No user or token available');
       }
 
       navigation.navigate('InitialchatScreen');
@@ -73,7 +94,7 @@ const OtpScreen = () => {
       style={[styles.container, { backgroundColor: theme.colors.background }]}
     >
       <View style={styles.otp_header}>
-        <TouchableOpacity onPress={() => navigation.goBack('PhoneNumScreen')}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
           <Image
             source={images.back}
             style={[styles.back_btn, { tintColor: theme.colors.texts }]}

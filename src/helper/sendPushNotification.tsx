@@ -1,19 +1,23 @@
 import axios from 'axios';
 
 export async function sendPushNotification(
-  token: string,
+  userId: string,
   title: string,
   body: string,
   screen: string,
+  chatId?: string,
+  senderId?: string,
 ) {
   try {
     const response = await axios.post(
-      'http://10.0.2.2:3000/send-notification',
+      'http://10.0.2.2:3000/send',
       {
-        token,
-        title,
-        body,
-        screen,
+        userId: String(userId || ''),
+        title: String(title || ''),
+        body: String(body || ''),
+        screen: String(screen || 'ChatScreen'),
+        chatId: String(chatId || ''),
+        senderId: String(senderId || ''),
       },
       {
         headers: {
@@ -29,7 +33,7 @@ export async function sendPushNotification(
       code: error.code,
       response: error.response?.data,
       status: error.response?.status,
-      url: 'http://10.0.2.2:3000/send-notification',
+      url: 'http://10.0.2.2:3000/send',
     });
     throw error;
   }

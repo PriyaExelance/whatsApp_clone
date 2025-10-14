@@ -5,16 +5,13 @@ import {
   StyleSheet,
   useColorScheme,
   Image,
-  TextInput,
   TouchableOpacity,
-  FlatList,
-  ScrollView,
 } from 'react-native';
 import { lightTheme, darkTheme, colors } from '../helper/colors';
 import { hp, wp, fontSize } from '../helper/responsive';
 import { images } from '../assets/images';
 import auth from '@react-native-firebase/auth';
-import { NavigationContainer, useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import firebase from '@react-native-firebase/app';
 import firestore from '@react-native-firebase/firestore';
 import moment from 'moment';
@@ -22,11 +19,16 @@ import Modal from 'react-native-modal';
 import { texts } from '../helper/strings';
 import { ThemeContext } from '../hooks/themeContext';
 import { sendPushNotification } from '../helper/sendPushNotification';
-import messaging from '@react-native-firebase/messaging';
-import { Linking } from 'react-native';
-const ChatScreen = ({ route }: { route: any }) => {
+import TextInputComponent from '../components/TextInputComponent';
+import ListComponent from '../components/ListComponent';
+import ImageModalComponent from '../components/ImageModalComponent';
+import ButtonComponent from '../components/ButtonComponent';
+
+const ChatScreen = () => {
   const { theme } = useContext(ThemeContext);
-  const { id, img, firstname, lastname } = route.params;
+  const route = useRoute();
+  const { id: otherUserId, img, firstname, lastname } = route.params || {};
+  console.log('reciever id ', otherUserId);
   const colorScheme = useColorScheme();
   const themeStyles = colorScheme === 'light' ? lightTheme : darkTheme;
   const [msg, setMsg] = useState('');
@@ -39,6 +41,40 @@ const ChatScreen = ({ route }: { route: any }) => {
   const [imgVisible, setImgVisible] = useState(false);
   const [image_select, setImageSelect] = useState([]);
   const [date, setDate] = useState([]);
+  const [userDetails, setUserDetails] = useState({
+    firstname: '',
+    lastname: '',
+    img: '',
+  });
+
+  const fetchUserDetails = async () => {
+    try {
+      const userDoc = await firestore()
+        .collection('users')
+        .doc(otherUserId)
+        .get();
+      if (userDoc.exists) {
+        const data = userDoc.data();
+        setUserDetails({
+          firstname: data?.firstname || '',
+          lastname: data?.lastname || '',
+          img: data?.img || '',
+        });
+      } else {
+        console.warn('No user document found for otherUserId:', otherUserId);
+      }
+    } catch (error) {
+      console.error('Error fetching user details:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (otherUserId) {
+      fetchUserDetails();
+    } else {
+      navigation.replace('InitialScreen');
+    }
+  }, [otherUserId]);
 
   const imgs = [
     {
@@ -72,34 +108,6 @@ const ChatScreen = ({ route }: { route: any }) => {
         'https://images.unsplash.com/photo-1746555697990-3a405a5152b9?q=80&w=687&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
     },
   ];
-
-  // const linking = {
-  //   prefixes: ['myapp://'],
-  //   config: {
-  //     screens: {
-  //       ChatScreen: 'chat/:userId',
-  //     },
-  //   },
-  // };
-
-  // messaging().onNotificationOpenedApp(remoteMessage => {
-  //   if (remoteMessage?.data?.link) {
-  //     Linking.openURL(remoteMessage.data.link);
-  //   }
-  // });
-
-  // // When app is opened from a quit state
-  // messaging()
-  //   .getInitialNotification()
-  //   .then(remoteMessage => {
-  //     if (remoteMessage?.data?.link) {
-  //       Linking.openURL(remoteMessage.data.link);
-  //     }
-  //   });
-  // <NavigationContainer linking={linking}>
-  //   {/* your navigators */}
-  // </NavigationContainer>
-
   const attach_icons = [
     {
       id: 1,
@@ -116,8 +124,6 @@ const ChatScreen = ({ route }: { route: any }) => {
     { id: 9, icon: require('../assets/images/gallery.png'), name: 'Ai Images' },
   ];
 
-  const otherUserId = id;
-  console.log('reciever id ', otherUserId);
   const chatID =
     currentUserId > otherUserId
       ? `${otherUserId}-${currentUserId}`
@@ -140,10 +146,17 @@ const ChatScreen = ({ route }: { route: any }) => {
     return () => unsubscribe();
   }, [chatID]);
 
-  const getReceiverFcmToken = async (userId: string) => {
+  const getReceiverFcmToken = async (
+    userId: string,
+  ): Promise<string | null> => {
     try {
       const userDoc = await firestore().collection('users').doc(userId).get();
-      return userDoc.data()?.fcmToken || null;
+      if (userDoc.exists) {
+        const tokens = userDoc.data()?.fcmTokens || [];
+        return tokens.length > 0 ? tokens[0] : null;
+      }
+      console.log('No user document found for userId:', userId);
+      return null;
     } catch (error) {
       console.error('Error fetching receiver FCM token:', error);
       return null;
@@ -227,17 +240,29 @@ const ChatScreen = ({ route }: { route: any }) => {
         });
       }
 
+      console.log('Fetching token for otherUserId:', otherUserId);
       const receiverToken = await getReceiverFcmToken(otherUserId);
       if (!receiverToken) {
-        console.warn('No FCM token found for receiver');
+        console.warn(
+          'No FCM token found for receiver with userId:',
+          otherUserId,
+        );
+        return;
       } else {
-        const senderName = `${firstname} ${lastname}`;
+        console.log('Found receiver token:', receiverToken);
+        const senderName = `${route.params.firstname || ''} ${
+          route.params.lastname || ''
+        }`;
+
         await sendPushNotification(
-          receiverToken,
+          otherUserId,
           senderName,
           messageText,
           'ChatScreen',
+          chatID,
+          currentUserId,
         );
+        console.log('Message sent with notification');
       }
     } catch (error) {
       console.error('Error sending message:', error);
@@ -467,17 +492,22 @@ const ChatScreen = ({ route }: { route: any }) => {
       <View style={styles.header_view}>
         <View style={styles.header_name}>
           <TouchableOpacity
-            onPress={() => navigation.goBack('InitialchatScreen')}
+            onPress={() => {
+              navigation.goBack();
+            }}
           >
             <Image source={images.back_arrow} style={styles.profile_pic} />
           </TouchableOpacity>
 
           <View style={styles.pic_view}>
-            <Image source={{ uri: img }} style={styles.pic_sizing} />
+            <Image
+              source={{ uri: userDetails.img }}
+              style={styles.pic_sizing}
+            />
           </View>
           <View style={styles.chat_name}>
             <Text style={styles.text_style}>
-              {firstname} {lastname}
+              {userDetails.firstname} {userDetails.lastname}
             </Text>
             <Text style={styles.online_txt}>{texts.online}</Text>
           </View>
@@ -486,11 +516,11 @@ const ChatScreen = ({ route }: { route: any }) => {
           <Image source={images.settings} style={styles.setting_img} />
         </View>
       </View>
-      <FlatList
+      <ListComponent
         contentContainerStyle={styles.message_list}
         data={messages}
         renderItem={renderMessage}
-        keyExtractor={item => item.id}
+        keyExtractor={item => item.createdAt.toString()}
         inverted
       />
       <View style={styles.text_msgview}>
@@ -502,7 +532,7 @@ const ChatScreen = ({ route }: { route: any }) => {
         >
           <View style={styles.textinput_msg}>
             <Image source={images.emoji} />
-            <TextInput
+            <TextInputComponent
               placeholder="Message"
               value={msg}
               onChangeText={txt => {
@@ -532,53 +562,37 @@ const ChatScreen = ({ route }: { route: any }) => {
           )}
         </TouchableOpacity>
       </View>
-      <Modal
+      <ImageModalComponent
         isVisible={isVisible}
-        style={[styles.modal_open, { margin: 0 }]}
-        onBackdropPress={() => setVisible(!isVisible)}
-      >
-        <View
-          style={{
-            backgroundColor: colors.white,
-            borderTopLeftRadius: wp(16),
-            borderTopRightRadius: wp(16),
-            alignItems: 'center',
-          }}
-        >
-          <FlatList
-            data={imgs}
-            renderItem={renderItem}
-            numColumns={2}
-            keyExtractor={(item: any) => item.id}
-            contentContainerStyle={[styles.list_imgs]}
+        onClose={() => setVisible(!isVisible)}
+        showFooter={selectedImg.length > 0}
+        footerContent={
+          <ButtonComponent
+            title={texts.send}
+            onPress={() => sendPhotos(selectedImg, currentUserId)}
           />
-          {selectedImg.length > 0 && (
-            <TouchableOpacity
-              style={{
-                backgroundColor: colors.dd,
-                padding: wp(10),
-                borderRadius: wp(16),
-                marginTop: hp(10),
-                marginBottom: hp(10),
-              }}
-              onPress={() => sendPhotos(selectedImg, currentUserId)}
-            >
-              <Text style={{ color: colors.white }}>{texts.send}</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </Modal>
+        }
+      >
+        <ListComponent
+          data={imgs}
+          renderItem={renderItem}
+          numColumns={2}
+          keyExtractor={(item: any) => item.id}
+          contentContainerStyle={styles.list_imgs}
+        />
+      </ImageModalComponent>
+
       <Modal
         isVisible={docsVisible}
         style={[styles.modal_open, { margin: 0 }]}
         onBackdropPress={() => setDocsVisible(false)}
       >
         <View style={styles.modal_viewStyle}>
-          <FlatList
+          <ListComponent
             data={attach_icons}
             renderItem={render_Attachments}
             numColumns={3}
-            keyExtractor={(item: any) => item.id}
+            keyExtractor={(item: any) => item.id.toString()}
             contentContainerStyle={styles.list_imgs}
           />
         </View>
@@ -594,10 +608,10 @@ const ChatScreen = ({ route }: { route: any }) => {
             </Text>
           </View>
 
-          <FlatList
+          <ListComponent
             data={image_select}
             renderItem={render_Images}
-            keyExtractor={(item: any) => item.id}
+            keyExtractor={(item: any) => item.id.toString()}
             contentContainerStyle={styles.list_imgs}
           />
         </View>

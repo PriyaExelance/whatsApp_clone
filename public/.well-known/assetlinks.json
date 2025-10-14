@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.new_whatsappclone",
+      "sha256_cert_fingerprints": [
+        "57:EF:99:8D:B8:A4:7F:8C:E0:CB:83:1E:7D:36:98:1B:03:6E:06:CB:99:7F:AD:32:63:79:57:76:1E:FB:FC:55"
+      ]
+    }
+  }
+]

@@ -47,9 +47,10 @@ app.post('/register-token', async (req, res) => {
 
 // Send notification to a specific user
 app.post('/send', async (req, res) => {
-  const { userId, title, body, screen, chatId } = req.body;
+  const { userId, title, body, screen, chatId, senderId } = req.body;
 
-  // Validate userId
+  console.log('Received request body:', req.body); // Debug log
+
   if (!userId || typeof userId !== 'string' || userId.trim() === '') {
     return res.status(400).send({ success: false, error: 'Invalid userId' });
   }
@@ -57,46 +58,47 @@ app.post('/send', async (req, res) => {
   try {
     const userRef = db.collection('users').doc(userId);
     const userDoc = await userRef.get();
+    console.log('Firestore document data:', userDoc.data()); // Debug log
     const tokens = userDoc.data()?.fcmTokens || [];
 
     if (!tokens || tokens.length === 0) {
       return res.status(404).send({ success: false, error: 'No token found for this user' });
     }
+    console.log('Sending to Tokens:', tokens);
 
     const message = {
-      notification: { title, body },
+      notification: { title: String(title || ''), body: String(body || '') },
       data: {
-        screen,
-        senderId: userId,
-        chatId: chatId || '',
-        messageBody: JSON.stringify({ text: body, type: 'text' }),
+        screen: String(screen || 'ChatScreen'),
+        id: String(senderId || ''),
+        chatId: String(chatId || ''),
+        messageBody: JSON.stringify({ text: String(body || ''), type: 'text' }),
       },
     };
+    console.log('Constructed message data:', message.data); // Debug log
 
-    // Use send for each token individually
     const responses = await Promise.all(
       tokens.map(async (token) => {
         try {
           return await admin.messaging().send({ ...message, token });
         } catch (error) {
-          console.error(`Failed to send to token ${token}:`, error);
+          console.error(`Failed to send to token ${token}:`, error.message);
           return { success: false, error: error.message };
         }
       })
     );
 
-    const successful = responses.filter(r => r.success).length;
-    const failed = responses.filter(r => !r.success).length;
+    const successful = responses.filter(r => typeof r === 'string').length;
+    const failed = responses.filter(r => typeof r === 'object' && !r.success).length;
 
     if (failed > 0) {
-      console.error('Failed responses:', responses.filter(r => !r.success));
+      console.error('Failed responses:', responses.filter(r => typeof r === 'object' && !r.success));
     }
 
-    res.status(200).send({ success: true, successful, failed });
+    res.status(200).send({ success: true, successful, failed, res: responses });
   } catch (error) {
     console.error('Error sending notification:', error);
     res.status(500).send({ success: false, error: error.message });
   }
 });
-
 app.listen(3000, () => console.log('Server started on http://localhost:3000'));

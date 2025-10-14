@@ -4,9 +4,7 @@ import {
   StyleSheet,
   Image,
   TouchableOpacity,
-  TextInput,
   Alert,
-  FlatList,
   ActivityIndicator,
   Animated,
   StatusBar,
@@ -15,10 +13,8 @@ import {
 } from 'react-native';
 import { wp, hp, fontSize } from '../helper/responsive';
 import { texts } from '../helper/strings';
-
 import { images } from '../assets/images';
 import { useNavigation } from '@react-navigation/native';
-
 import { colors } from '../helper/colors';
 import Modal from 'react-native-modal';
 import { useEffect, useState, useRef, useContext } from 'react';
@@ -26,9 +22,15 @@ import firebase from '@react-native-firebase/app';
 import firestore from '@react-native-firebase/firestore';
 import auth from '@react-native-firebase/auth';
 import { ThemeContext } from '../hooks/themeContext';
+import ListComponent from '../components/ListComponent';
+import TextInputComponent from '../components/TextInputComponent';
+import ImageModalComponent from '../components/ImageModalComponent';
+import ButtonComponent from '../components/ButtonComponent';
+import { useRoute } from '@react-navigation/native';
 
 const InitialchatScreen = () => {
   const navigation = useNavigation();
+  const route = useRoute();
   const { theme } = useContext(ThemeContext);
   const [isModalVisible, setModalVisible] = useState(false);
   const [setting_modal, setSettingModal] = useState(false);
@@ -40,6 +42,8 @@ const InitialchatScreen = () => {
   const [phone, setPhone] = useState('');
   const [img, setImage] = useState('');
   const [selectedItem, setSelectedItem] = useState(1);
+  const [openUserId, setOpenUserId] = useState<string | null>(null);
+  const [statusList, setStatusList] = useState<any[]>([]);
   const [showSearchinput, setSearchinput] = useState(false);
   const [search, setSearch] = useState('');
   const [filteredData, setFilteredData] = useState(users);
@@ -67,6 +71,12 @@ const InitialchatScreen = () => {
   const [progressPaused, setProgressPaused] = useState(false);
   const [progressValue, setProgressValue] = useState(0);
 
+  const wp_categories = [
+    { id: 1, name: 'Chats' },
+    { id: 2, name: 'Status' },
+    { id: 3, name: 'Calls' },
+  ];
+
   const animated_progress = (anim, duration, fromValue = 0) => {
     anim.stopAnimation(value => {
       if (progressPaused) setProgressValue(value);
@@ -90,14 +100,69 @@ const InitialchatScreen = () => {
     user > other_user ? `${other_user}-${user}` : `${user}-${other_user}`;
 
   useEffect(() => {
+    if (route?.params?.selectedItem !== undefined) {
+      setSelectedItem(route.params.selectedItem);
+    }
+  }, [route?.params?.selectedItem]);
+
+  useEffect(() => {
+    // Fetch initial data
     fetchCurrentUserStatus();
+
     if (selectedItem === 1) {
       fetchUsers();
     } else if (selectedItem === 2) {
-      getStatus();
+      getAllstatus();
     }
-    getAllstatus();
+
     listenAllStatus();
+    if (route.params?.selectedItem === 2 && route.params?.openStatusUserId) {
+      const userId = route.params.openStatusUserId;
+
+      getUsersWithStatus().then(allStatus => {
+        const targetUser = allStatus.find(u => u.userId === userId);
+
+        if (
+          !targetUser ||
+          !targetUser.statuses ||
+          targetUser.statuses.length === 0
+        ) {
+          setSelectedItem(2);
+          Alert.alert('No status available for this user');
+          return;
+        }
+
+        // Flatten statuses into modal-friendly structure
+        const modalStatuses = targetUser.statuses.flatMap(statusObj => {
+          if (!Array.isArray(statusObj.image_status)) return [];
+
+          return statusObj.image_status.flatMap(imgStatus => {
+            if (!Array.isArray(imgStatus.image)) return [];
+
+            return imgStatus.image.map(img => ({
+              url: img.url,
+              user_name: targetUser.userName || '',
+              profile_pic: targetUser.userProfile || '',
+              sender_id: targetUser.userId,
+              createdAt: img.createdAt || null,
+              viewed: img.viewed || false,
+            }));
+          });
+        });
+        if (modalStatuses.length === 0) {
+          Alert.alert('No status available for this user');
+          return;
+        }
+
+        // ✅ Switch to Status tab
+        setSelectedItem(2);
+        setSelectedUserStatuses(modalStatuses);
+        setCurrentIndex(0);
+
+        // Open preview modal after state updates
+        setTimeout(() => setUserPreview(true), 10);
+      });
+    }
   }, []);
 
   const startUserPreviewTimer = () => {
@@ -624,11 +689,7 @@ const InitialchatScreen = () => {
       setFilteredData([]);
     }
   };
-  const wp_categories = [
-    { id: 1, name: 'Chats' },
-    { id: 2, name: 'Status' },
-    { id: 3, name: 'Calls' },
-  ];
+
   const imgs = [
     {
       id: 1,
@@ -724,15 +785,16 @@ const InitialchatScreen = () => {
       return (
         <TouchableOpacity
           style={styles.user_list}
-          onPress={() =>
+          onPress={() => {
+            console.log('id', item.id);
             navigation.navigate('ChatScreen', {
               id: item.id,
               img: item.img,
               firstname: item.firstname,
               lastname: item.lastname,
               phone_no: item.phone,
-            })
-          }
+            });
+          }}
         >
           <View style={styles.profile_pic}>
             <Image source={{ uri: item.img }} style={styles.profile_imgSize} />
@@ -950,7 +1012,7 @@ const InitialchatScreen = () => {
       <View style={styles.header_color}>
         {showSearchinput ? (
           <View style={styles.search_text}>
-            <TextInput
+            <TextInputComponent
               ref={replyStatus}
               value={search}
               onChangeText={handleSearch}
@@ -1008,10 +1070,10 @@ const InitialchatScreen = () => {
       </View>
       {users.length > 0 ? (
         selectedItem === 1 ? (
-          <FlatList
+          <ListComponent
             style={{ flex: 1 }}
-            data={selectedItem === 1 && filteredData}
-            renderItem={selectedItem === 1 && renderItem1}
+            data={filteredData}
+            renderItem={renderItem1}
             keyExtractor={item => item.id.toString()}
             ItemSeparatorComponent={
               selectedItem === 1 && <View style={styles.user_listSeprator} />
@@ -1049,8 +1111,10 @@ const InitialchatScreen = () => {
                   {find_user.firstname}
                 </Text>
               </TouchableOpacity>
-              <FlatList
-                data={allStatus}
+              <ListComponent
+                data={allStatus.filter(
+                  u => u.userId !== auth().currentUser?.uid,
+                )}
                 renderItem={renderStatus}
                 keyExtractor={item => item.id}
                 horizontal
@@ -1065,8 +1129,10 @@ const InitialchatScreen = () => {
               >
                 {texts.recent_update}
               </Text>
-              <FlatList
-                data={allStatus}
+              <ListComponent
+                data={allStatus.filter(
+                  u => u.userId !== auth().currentUser?.uid,
+                )}
                 renderItem={renderUsersStatus}
                 keyExtractor={item => item.id}
               />
@@ -1111,24 +1177,24 @@ const InitialchatScreen = () => {
           </TouchableOpacity>
 
           <View style={styles.name_view}>
-            <Text>{texts.first_name} :</Text>
-            <TextInput
+            <Text>{texts.first_name}</Text>
+            <TextInputComponent
               placeholder="Enter First Name"
               value={firstname}
               onChangeText={txt => setFirstname(txt)}
             />
           </View>
           <View style={styles.name_view}>
-            <Text>{texts.last_name} :</Text>
-            <TextInput
+            <Text>{texts.last_name}</Text>
+            <TextInputComponent
               placeholder="Enter Last Name"
               value={lastname}
               onChangeText={txt => setLastname(txt)}
             />
           </View>
           <View style={styles.name_view}>
-            <Text>{texts.phone} :</Text>
-            <TextInput
+            <Text>{texts.phone}</Text>
+            <TextInputComponent
               maxLength={10}
               placeholder="Enter Phone number"
               value={phone}
@@ -1360,7 +1426,7 @@ const InitialchatScreen = () => {
                   alignItems: 'center',
                 }}
               >
-                <TextInput
+                <TextInputComponent
                   ref={status_reply}
                   value={reply}
                   placeholder="Reply..."
@@ -1541,7 +1607,7 @@ const InitialchatScreen = () => {
                   alignItems: 'center',
                 }}
               >
-                <TextInput
+                <TextInputComponent
                   value={statusReply}
                   placeholder="Reply..."
                   placeholderTextColor={colors.white}
@@ -1728,44 +1794,27 @@ const InitialchatScreen = () => {
           </View>
         </TouchableWithoutFeedback>
       </Modal>
-      <Modal
+      <ImageModalComponent
         isVisible={isVisible}
-        style={{ justifyContent: 'flex-end', margin: 0 }}
-        onBackdropPress={() => setVisible(!isVisible)}
-      >
-        <View
-          style={{
-            backgroundColor: colors.white,
-            borderTopLeftRadius: wp(16),
-            borderTopRightRadius: wp(16),
-            alignItems: 'center',
-          }}
-        >
-          <FlatList
-            data={imgs}
-            renderItem={renderItem}
-            numColumns={2}
-            keyExtractor={(item: any) => item.id}
-            contentContainerStyle={styles.list_imgs}
+        onClose={() => setVisible(!isVisible)}
+        showFooter={selectedImg.length > 0}
+        footerContent={
+          <ButtonComponent
+            title={texts.send}
+            onPress={() => {
+              sendPhotos(user, selectedImg);
+            }}
           />
-          {selectedImg.length > 0 && (
-            <TouchableOpacity
-              style={{
-                backgroundColor: colors.dd,
-                padding: wp(10),
-                borderRadius: wp(16),
-                marginTop: hp(10),
-                marginBottom: hp(10),
-              }}
-              onPress={() => {
-                sendPhotos(user, selectedImg);
-              }}
-            >
-              <Text style={{ color: colors.white }}>{texts.send}</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </Modal>
+        }
+      >
+        <ListComponent
+          data={imgs}
+          renderItem={renderItem}
+          numColumns={2}
+          keyExtractor={(item: any) => item.id}
+          contentContainerStyle={styles.list_imgs}
+        />
+      </ImageModalComponent>
       <Modal
         isVisible={user_modal}
         style={[styles.modal_open, { margin: 0 }]}

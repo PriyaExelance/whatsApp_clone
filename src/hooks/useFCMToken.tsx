@@ -5,6 +5,38 @@ import messaging from '@react-native-firebase/messaging';
 export function useFCMToken() {
   const [fcmToken, setFcmToken] = useState<string | null>(null);
 
+  const saveTokenToFirestore = async (token: string) => {
+    try {
+      const user = auth().currentUser;
+      if (!user) {
+        console.log('No user logged in');
+        return;
+      }
+
+      const userId = user.uid;
+      const userRef = firestore().collection('users').doc(userId);
+      const userDoc = await userRef.get();
+
+      if (userDoc.exists) {
+        const existingTokens = userDoc.data()?.fcmTokens || [];
+        if (!existingTokens.includes(token)) {
+          await userRef.update({
+            fcmTokens: [...existingTokens, token],
+          });
+        }
+      } else {
+        await userRef.set({
+          uid: userId,
+          phone: user.phoneNumber || '',
+          fcmTokens: [token],
+        });
+      }
+      console.log('FCM token saved successfully:', token, 'for user:', userId);
+    } catch (err) {
+      console.error('Error saving FCM token to Firestore:', err);
+    }
+  };
+
   useEffect(() => {
     const getToken = async () => {
       try {
@@ -35,7 +67,7 @@ export function useFCMToken() {
 
         const token = await messaging().getToken();
         setFcmToken(token);
-
+        await saveTokenToFirestore(token);
         return messaging().onTokenRefresh(newToken => {
           console.log('FCM Token refreshed:', newToken);
           setFcmToken(newToken);
