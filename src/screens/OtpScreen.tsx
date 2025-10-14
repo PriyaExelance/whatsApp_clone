@@ -1,4 +1,4 @@
-import React, { Component, useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import {
   View,
   Text,
@@ -11,17 +11,19 @@ import {
 } from 'react-native';
 import { wp, hp, fontSize } from '../helper/responsive';
 import { texts } from '../helper/strings';
-import { fontFamily } from '../assets/fontFamily';
 import { images } from '../assets/images';
 import { useNavigation } from '@react-navigation/native';
 import { OtpInput } from 'react-native-otp-entry';
 import { lightTheme, darkTheme, colors } from '../helper/colors';
 import { useRoute } from '@react-navigation/native';
+import { ThemeContext } from '../hooks/themeContext';
+import firestore from '@react-native-firebase/firestore';
+import auth from '@react-native-firebase/auth'; // Add this import
+import messaging from '@react-native-firebase/messaging'; // Add this import
 
 const OtpScreen = () => {
+  const { theme } = useContext(ThemeContext);
   const navigation = useNavigation();
-  const colorScheme = useColorScheme();
-  const themeStyles = colorScheme === 'light' ? lightTheme : darkTheme;
   const route = useRoute();
   const [code, setCode] = useState('');
   const [timeLeft, setTimeLeft] = useState(60);
@@ -35,21 +37,52 @@ const OtpScreen = () => {
   const main = `+91 ${firstTwoDigits}******${lastTwoDigits}`;
 
   useEffect(() => {
-    let timers;
+    let timerId;
     if (timeLeft > 0) {
-      timers = setInterval(() => {
+      timerId = setInterval(() => {
         setTimeLeft(prevTime => prevTime - 1);
       }, 1000);
     } else {
       setCanResend(true);
     }
-
-    return () => clearInterval(timer);
+    return () => clearInterval(timerId); // Fixed typo in timer variable
   }, [timeLeft]);
 
   const confirmCode = async () => {
     try {
       await confirmation.confirm(code);
+
+      // Manually fetch and save token to Firestore
+      const token = await messaging().getToken();
+      const userId = auth().currentUser?.uid;
+      if (userId && token) {
+        const userRef = firestore().collection('users').doc(userId);
+        const userDoc = await userRef.get();
+
+        if (userDoc.exists) {
+          const existingTokens = userDoc.data()?.fcmTokens || [];
+          if (!existingTokens.includes(token)) {
+            await userRef.update({
+              fcmTokens: [...existingTokens, token],
+            });
+          }
+        } else {
+          await userRef.set({
+            uid: userId,
+            phone: phone,
+            fcmTokens: [token],
+          });
+        }
+        console.log(
+          'FCM token saved successfully:',
+          token,
+          'for user:',
+          userId,
+        );
+      } else {
+        console.log('No user or token available');
+      }
+
       navigation.navigate('InitialchatScreen');
     } catch (error) {
       console.error('Error verifying OTP:', error);
@@ -58,22 +91,22 @@ const OtpScreen = () => {
 
   return (
     <View
-      style={[styles.container, { backgroundColor: themeStyles.background }]}
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
     >
       <View style={styles.otp_header}>
-        <TouchableOpacity onPress={() => navigation.goBack('PhoneNumScreen')}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
           <Image
             source={images.back}
-            style={[styles.back_btn, { tintColor: themeStyles.texts }]}
+            style={[styles.back_btn, { tintColor: theme.colors.texts }]}
           />
         </TouchableOpacity>
-        <Text style={[styles.header, { color: themeStyles.texts }]}>
+        <Text style={[styles.header, { color: theme.colors.texts }]}>
           {texts.enter_otp}
         </Text>
       </View>
 
       <View style={styles.otp_entryHeader}>
-        <Text style={[styles.code_send, { color: themeStyles.texts }]}>
+        <Text style={[styles.code_send, { color: theme.colors.texts }]}>
           {texts.code_send}
           {main}
         </Text>
@@ -84,14 +117,14 @@ const OtpScreen = () => {
             type="numeric"
             theme={{
               pinCodeTextStyle: {
-                color: themeStyles.texts,
+                color: theme.colors.texts,
               },
               pinCodeContainerStyle: {
                 width: wp(40),
-                borderColor: themeStyles.texts,
+                borderColor: theme.colors.texts,
               },
-              focusStickStyle: { backgroundColor: themeStyles.texts },
-              focusedPinCodeContainerStyle: { borderColor: themeStyles.texts },
+              focusStickStyle: { backgroundColor: theme.colors.texts },
+              focusedPinCodeContainerStyle: { borderColor: theme.colors.texts },
             }}
           />
         </View>
@@ -102,12 +135,12 @@ const OtpScreen = () => {
               setTimeLeft(60), setCanResend(false);
             }}
           >
-            <Text style={[styles.code_send, { color: themeStyles.texts }]}>
-              {texts.ResendCode}
+            <Text style={[styles.code_send, { color: theme.colors.texts }]}>
+              {texts.resend_code_txt}
             </Text>
           </TouchableOpacity>
         ) : (
-          <Text style={[styles.code_send, { color: themeStyles.texts }]}>
+          <Text style={[styles.code_send, { color: theme.colors.texts }]}>
             {splitted[0]}
             <Text style={styles.timeLeft}>{timeLeft}</Text>
             {splitted[1]}
@@ -120,8 +153,8 @@ const OtpScreen = () => {
           {
             backgroundColor:
               code.length !== 6
-                ? themeStyles.disabled_button
-                : themeStyles.verify_button,
+                ? theme.colors.disabled_button
+                : theme.colors.verify_button,
           },
         ]}
         onPress={() => {
@@ -129,7 +162,7 @@ const OtpScreen = () => {
         }}
         disabled={code.length !== 6}
       >
-        <Text style={[styles.verify_btn, { color: themeStyles.verify_text }]}>
+        <Text style={[styles.verify_btn, { color: theme.colors.verify_text }]}>
           {texts.verify}
         </Text>
       </TouchableOpacity>

@@ -1,5 +1,5 @@
 //import liraries
-import React, { useEffect } from 'react';
+import React, { useEffect, useContext } from 'react';
 import {
   View,
   Text,
@@ -15,32 +15,30 @@ import { useNavigation } from '@react-navigation/native';
 import { lightTheme, darkTheme, colors } from '../helper/colors';
 import { getAuth } from '@react-native-firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ThemeContext } from '../hooks/themeContext';
 
 // create a component
 const WelcomeScreen = () => {
+  const { theme, toggleTheme } = useContext(ThemeContext);
   const navigation = useNavigation();
   useEffect(() => {
-    const checkUser = async () => {
-      const auth = getAuth();
-      const user = auth.currentUser;
-      if (user) {
-        try {
-          await AsyncStorage.setItem('currentUser', JSON.stringify(user));
-          console.log('User stored in AsyncStorage');
-          navigation.replace('InitialchatScreen');
-        } catch (error) {
-          console.error('Error saving user to AsyncStorage:', error);
-        }
-      } else {
-        console.log('User is not logged in.');
-      }
-    };
-
     checkUser();
   }, []);
+  const checkUser = async () => {
+    const auth = getAuth();
+    const user = auth.currentUser;
+    if (user) {
+      try {
+        await AsyncStorage.setItem('currentUser', JSON.stringify(user));
+        navigation.replace('InitialchatScreen');
+      } catch (error) {
+        console.error('Error saving user to AsyncStorage:', error);
+      }
+    } else {
+      console.log('User is not logged in.');
+    }
+  };
 
-  const colorScheme = useColorScheme();
-  const themeStyles = colorScheme === 'light' ? lightTheme : darkTheme;
   const fullText = texts.termspolicy;
   const blueText = 'Privacy Policy';
 
@@ -53,24 +51,22 @@ const WelcomeScreen = () => {
 
   return (
     <View
-      style={[styles.container, { backgroundColor: themeStyles.background }]}
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
     >
       <View style={styles.wlc_header}>
-        <Text style={[styles.wlc_text, { color: themeStyles.texts }]}>
+        <Text style={[styles.wlc_text, { color: theme.colors.texts }]}>
           {texts.wlc}
         </Text>
         <View style={styles.img_view}>
-          <Image
-            source={colorScheme === 'light' ? images.wlc_img : images.green}
-          />
+          <Image source={theme ? images.wlc_img : images.green} />
         </View>
         <View style={styles.text_terms}>
-          <Text style={[styles.txt_policy, { color: themeStyles.texts }]}>
+          <Text style={[styles.txt_policy, { color: theme.colors.texts }]}>
             {parts[0]}
             <Text style={styles.txt_color}>{blueText}</Text>
             {parts[1]}
           </Text>
-          <Text style={[styles.txt_policy, { color: themeStyles.texts }]}>
+          <Text style={[styles.txt_policy, { color: theme.colors.texts }]}>
             {parts1[0]}
             <Text style={styles.txt_color}>{blue_Text}</Text>
             {parts1[1]}
@@ -82,14 +78,14 @@ const WelcomeScreen = () => {
             navigation.navigate('PhoneNumScreen');
           }}
         >
-          <Text style={{ color: themeStyles.btn_text }}>{texts.agree}</Text>
+          <Text style={{ color: theme.colors.btn_text }}>{texts.agree}</Text>
         </TouchableOpacity>
       </View>
       <View style={styles.bottom_txt}>
-        <Text style={[styles.from_txt, { color: themeStyles.texts }]}>
+        <Text style={[styles.from_txt, { color: theme.colors.texts }]}>
           {texts.from}
         </Text>
-        <Text style={[styles.facebook_txt, { color: themeStyles.texts }]}>
+        <Text style={[styles.facebook_txt, { color: theme.colors.texts }]}>
           {texts.facebook}
         </Text>
       </View>
